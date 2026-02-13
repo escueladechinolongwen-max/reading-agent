@@ -8,56 +8,70 @@ import html
 
 # --- 1. 页面基本配置 ---
 st.set_page_config(
-    page_title="阅读 Pro - 教学工作室版", 
+    page_title="阅读 Pro - 视野大师版", 
     page_icon="🎓", 
-    layout="wide" # 使用宽屏模式以适配分栏
+    layout="wide" 
 )
 
 # --- 2. 界面双语语言包 ---
 UI_TEXT = {
     "Español": {
-        "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Preparando voces...",
-        "typing_title": "✍️ Centro de Práctica",
-        "typing_instr": "Instrucción: Escribe el texto de arriba aquí para mejorar tu habilidad de escritura.",
+        "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Sincronizando voces...",
+        "typing_title": "✍️ Práctica de Escritura",
+        "typing_instr": "Instrucción: Escribe el texto de arriba aquí para mejorar tu habilidad.",
         "perfect": "🎉 ¡Excelente!"
     },
     "English": {
         "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Generating voices...",
-        "typing_title": "✍️ Practice Center",
+        "typing_title": "✍️ Typing Practice",
         "typing_instr": "Instruction: Type the text above here to master your typing skills.",
         "perfect": "🎉 Perfect!"
     }
 }
 
-# --- 3. 视觉设计 (CSS) - 核心：固定视窗布局 ---
+# --- 3. 视觉设计 (CSS) - 解决切顶与屏幕锁定 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
     
     .stApp { background-color: #FFFBF0; }
     
-    /* 1. 顶部区域：紧凑 */
-    .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; }
+    /* 彻底修复 Streamlit 顶部间距问题 */
+    .block-container { 
+        padding-top: 2rem !important; 
+        padding-bottom: 0rem !important; 
+        max-width: 950px !important;
+    }
 
-    /* 2. 中间滚动阅读区：核心修复 */
+    /* 自定义标题样式，防止被切断 */
+    .main-header {
+        font-family: 'Noto Serif SC', serif;
+        font-weight: 900;
+        color: #333;
+        font-size: 1.8rem;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+
+    /* 阅读滚动区：根据屏幕动态调整高度，确保不挤走打字框 */
     .reading-scroll-area {
         background-color: white; 
-        padding: 20px; 
+        padding: 15px 25px; 
         border-radius: 1.5rem;
         box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
         border: 2px solid #eee;
-        height: 400px; /* 👈 固定高度，确保下方打字框不被挤走 */
-        overflow-y: auto; /* 内容多了自动在内部滚动 */
+        height: 42vh; /* 👈 使用动态视窗高度，确保打字框可见 */
+        overflow-y: auto;
         margin-bottom: 15px;
     }
 
     .line-container { 
         display: flex; 
-        margin-bottom: 10px; 
+        margin-bottom: 8px; 
         align-items: flex-start;
         justify-content: space-between;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #f9f9f9;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #fcfcfc;
     }
 
     .left-zone { display: flex; flex: 1; align-items: flex-start; max-width: 70%; }
@@ -67,11 +81,11 @@ st.markdown("""
         font-size: 1em; padding-top: 8px; font-family: 'Noto Serif SC', serif;
     }
 
-    .text-content { line-height: 2.5; }
+    .text-content { line-height: 2.6; }
 
     ruby { 
         ruby-position: under; padding: 0 3px; font-family: "Noto Serif SC", serif; 
-        font-size: 22px; font-weight: 900; color: #333; 
+        font-size: 21px; font-weight: 900; color: #333; 
     }
 
     /* 拼音：绿色 */
@@ -80,36 +94,36 @@ st.markdown("""
         color: #15803D !important; font-weight: 700; padding-top: 6px !important; 
     }
 
-    /* 右侧翻译：蓝色 */
+    /* 右侧翻译：蓝色气泡 */
     .right-zone {
         width: 28%; background: #EFF6FF; border-left: 3px solid #3B82F6;
         padding: 8px 12px; border-radius: 10px; margin-top: 5px;
     }
 
     .trans-text { 
-        font-size: 0.85em; color: #1D4ED8; 
+        font-size: 0.82rem; color: #1D4ED8; 
         font-family: 'Noto Sans SC', sans-serif; font-weight: 700; line-height: 1.3;
     }
 
-    /* 3. 底部固定练习区 */
+    /* 底部打字区固定逻辑 */
     .typing-section {
-        background: white; padding: 15px 25px; border-radius: 1.5rem;
-        box-shadow: 0 -5px 20px rgba(0,0,0,0.05); border: 2px solid #eee;
+        background: #fff; padding: 12px 20px; border-radius: 1.2rem;
+        border: 2px solid #eee; box-shadow: 0 -5px 15px rgba(0,0,0,0.03);
     }
 
-    .instr-text { color: #666; font-size: 0.9em; font-weight: 700; margin-bottom: 8px; }
+    .instr-text { color: #666; font-size: 0.9em; font-weight: 700; margin-bottom: 6px; }
 
     .hide-pinyin rt { display: none !important; }
     .hide-pinyin .text-content { line-height: 1.5 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. 数据库 ---
+# --- 4. 数据库：内容完整对齐 (补全猫的对话) ---
 LESSONS = {
     "Dialogue I": [
         {"r": "美美", "t": [("大卫", "Dàwèi"), ("，", ""), ("请问", "qǐngwèn"), ("，", ""), ("今天", "jīntiān"), ("几号", "jǐ hào"), ("？", "")] , "tr_es": "David, ¿qué fecha es hoy?", "tr_en": "David, what's the date today?"},
-        {"r": "大卫", "t": [("今天", "jīntiān"), ("9月1号", "jiǔ yuè yī hào"), ("。", "")] , "tr_es": "Hoy es 1 de septiembre.", "tr_en": "Today is September 1st."},
-        {"r": "美美", "t": [("今天", "jīntiān"), ("星期几", "xīngqī jǐ"), ("？", "")] , "tr_es": "¿Qué día es hoy?", "tr_en": "What day is today?"},
+        {"r": "大卫", "t": [("今天", "jīntiān"), ("9月1号", "jiǔ yuè yī hào"), ("。", "")] , "tr_es": "Hoy es 1 de septiembre.", "tr_en": "Today is Sept 1st."},
+        {"r": "美美", "t": [("今天", "jīntiān"), ("星期几", "xīngqī jǐ"), ("？", "")] , "tr_es": "¿Qué día es hoy?", "tr_en": "What day of week is it?"},
         {"r": "大卫", "t": [("星期三", "xīngqī sān"), ("。", "")] , "tr_es": "Miércoles.", "tr_en": "Wednesday."},
         {"r": "美美", "t": [("明天", "míngtiān"), ("几月几号", "jǐ yuè jǐ hào"), ("？", "")] , "tr_es": "¿Qué fecha es mañana?", "tr_en": "What's the date tomorrow?"},
         {"r": "大卫", "t": [("明天", "míngtiān"), ("9月2号", "jiǔ yuè èr hào"), ("。", "")] , "tr_es": "Mañana es 2 de sept.", "tr_en": "Tomorrow is Sept 2nd."},
@@ -152,10 +166,12 @@ def main():
         show_pinyin = st.toggle(ui["pinyin"], value=True)
         show_trans = st.toggle(ui["trans"], value=False)
 
-    # 1. 顶部：标题 + 播放器
-    st.subheader(lesson_key)
+    # 1. 顶部：自定义标题 (防止被切断)
+    st.markdown(f'<div class="main-header">{lesson_key}</div>', unsafe_allow_html=True)
+    
     lesson_data = LESSONS[lesson_key]
     
+    # 语音处理
     if "c_lesson" not in st.session_state or st.session_state.c_lesson != lesson_key:
         fname = f"v_{int(time.time())}.mp3"
         with st.spinner(ui["audio_gen"]):
@@ -164,14 +180,13 @@ def main():
             st.session_state.c_lesson = lesson_key
     st.audio(st.session_state.f_audio)
     
-    # 2. 中间：内部滚动的阅读卡片
+    # 2. 中间：内部滚动的阅读卡片 (高度动态调整)
     p_class = "" if show_pinyin else "hide-pinyin"
     full_plain_text = ""
     
     html_card = f'<div class="reading-scroll-area {p_class}">'
     for line in lesson_data:
         html_card += '<div class="line-container">'
-        # 左侧：中文 + 拼音
         html_card += f'<div class="left-zone"><div class="role-label">{line["r"]}</div><div class="text-content">'
         for char, py in line["t"]:
             if show_pinyin and py:
@@ -180,21 +195,15 @@ def main():
                 html_card += f'<ruby style="line-height:1.4;">{char}</ruby>'
             full_plain_text += char
         html_card += '</div></div>'
-        # 右侧：翻译
         if show_trans:
             t_content = line["tr_en"] if ui_lang == "English" else line["tr_es"]
-            html_all_tr = f'<div class="right-zone"><span class="trans-text">{t_content}</span></div>'
-            html_card += html_all_tr
+            html_card += f'<div class="right-zone"><span class="trans-text">{t_content}</span></div>'
         html_card += '</div>'
     html_card += '</div>'
     st.markdown(html_card, unsafe_allow_html=True)
 
-    # 3. 底部：打字练习区（固定在屏幕内）
-    st.markdown(f'''
-    <div class="typing-section">
-        <p class="instr-text">✍️ {ui["typing_instr"]}</p>
-    </div>
-    ''', unsafe_allow_html=True)
+    # 3. 底部：练习区 (锁定在屏幕范围内)
+    st.markdown(f'<div class="typing-section"><p class="instr-text">✍️ {ui["typing_instr"]}</p></div>', unsafe_allow_html=True)
     
     user_input = st.text_input("Typing Practice", placeholder="Type here...", label_visibility="collapsed")
     
@@ -204,9 +213,9 @@ def main():
         for i in range(max_l):
             if i < len(user_input) and i < len(full_plain_text):
                 color = "#2ecc71" if user_input[i] == full_plain_text[i] else "#e74c3c"
-                res += f'<span style="color:{color}; font-size:18px; font-weight:bold;">{user_input[i]}</span>'
+                res += f'<span style="color:{color}; font-size:20px; font-weight:bold;">{user_input[i]}</span>'
             elif i < len(user_input):
-                res += f'<span style="color:#e74c3c; font-size:18px;">{user_input[i]}</span>'
+                res += f'<span style="color:#e74c3c; font-size:20px;">{user_input[i]}</span>'
         st.markdown(res + '</div>', unsafe_allow_html=True)
         if user_input.strip() == full_plain_text.strip(): st.balloons()
 
