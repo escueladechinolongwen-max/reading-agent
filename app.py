@@ -8,7 +8,7 @@ import html
 
 # --- 1. 页面基本配置 ---
 st.set_page_config(
-    page_title="阅读 Pro - 视野大师版", 
+    page_title="阅读 Pro - 自适应流体版", 
     page_icon="🎓", 
     layout="wide" 
 )
@@ -17,64 +17,67 @@ st.set_page_config(
 UI_TEXT = {
     "Español": {
         "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Sincronizando voces...",
-        "typing_title": "✍️ Práctica de Escritura",
+        "typing_title": "✍️ Centro de Práctica",
         "typing_instr": "Instrucción: Escribe el texto de arriba aquí para mejorar tu habilidad.",
         "perfect": "🎉 ¡Excelente!"
     },
     "English": {
         "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Generating voices...",
-        "typing_title": "✍️ Typing Practice",
+        "typing_title": "✍️ Practice Center",
         "typing_instr": "Instruction: Type the text above here to master your typing skills.",
         "perfect": "🎉 Perfect!"
     }
 }
 
-# --- 3. 视觉设计 (CSS) - 解决切顶与屏幕锁定 ---
+# --- 3. 视觉设计 (CSS) - 核心：动态屏幕空间计算 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
     
     .stApp { background-color: #FFFBF0; }
     
-    /* 彻底修复 Streamlit 顶部间距问题 */
+    /* 1. 顶部：强制精简间距 */
     .block-container { 
-        padding-top: 2rem !important; 
+        padding-top: 1.5rem !important; 
         padding-bottom: 0rem !important; 
-        max-width: 950px !important;
+        max-width: 1000px !important; 
     }
 
-    /* 自定义标题样式，防止被切断 */
     .main-header {
         font-family: 'Noto Serif SC', serif;
         font-weight: 900;
         color: #333;
-        font-size: 1.8rem;
-        margin-bottom: 10px;
+        font-size: 1.6rem;
+        margin-bottom: 5px;
         text-align: center;
     }
 
-    /* 阅读滚动区：根据屏幕动态调整高度，确保不挤走打字框 */
+    /* 2. 中间：自适应高度滚动区 (核心修复) */
     .reading-scroll-area {
         background-color: white; 
-        padding: 15px 25px; 
+        padding: 20px 30px; 
         border-radius: 1.5rem;
         box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
         border: 2px solid #eee;
-        height: 42vh; /* 👈 使用动态视窗高度，确保打字框可见 */
+        
+        /* 根据视口高度动态计算：100%高度 - 顶部和底部预留空间 */
+        height: calc(100vh - 380px); 
+        min-height: 300px;
         overflow-y: auto;
-        margin-bottom: 15px;
+        margin-bottom: 10px;
     }
 
     .line-container { 
         display: flex; 
-        margin-bottom: 8px; 
+        margin-bottom: 6px; 
         align-items: flex-start;
         justify-content: space-between;
-        padding-bottom: 8px;
+        padding-bottom: 6px;
         border-bottom: 1px solid #fcfcfc;
     }
 
-    .left-zone { display: flex; flex: 1; align-items: flex-start; max-width: 70%; }
+    /* 比例调整：中文 75% */
+    .left-zone { display: flex; flex: 1; align-items: flex-start; max-width: 75%; }
 
     .role-label {
         min-width: 55px; font-weight: 900; color: #BE185D; 
@@ -85,7 +88,7 @@ st.markdown("""
 
     ruby { 
         ruby-position: under; padding: 0 3px; font-family: "Noto Serif SC", serif; 
-        font-size: 21px; font-weight: 900; color: #333; 
+        font-size: 22px; font-weight: 900; color: #333; 
     }
 
     /* 拼音：绿色 */
@@ -94,31 +97,32 @@ st.markdown("""
         color: #15803D !important; font-weight: 700; padding-top: 6px !important; 
     }
 
-    /* 右侧翻译：蓝色气泡 */
+    /* 右侧：翻译 22% */
     .right-zone {
-        width: 28%; background: #EFF6FF; border-left: 3px solid #3B82F6;
-        padding: 8px 12px; border-radius: 10px; margin-top: 5px;
+        width: 22%; background: #EFF6FF; border-left: 3px solid #3B82F6;
+        padding: 6px 12px; border-radius: 8px; margin-top: 5px;
     }
 
     .trans-text { 
-        font-size: 0.82rem; color: #1D4ED8; 
+        font-size: 0.8rem; color: #1D4ED8; 
         font-family: 'Noto Sans SC', sans-serif; font-weight: 700; line-height: 1.3;
     }
 
-    /* 底部打字区固定逻辑 */
+    /* 3. 底部：打字练习区 */
     .typing-section {
-        background: #fff; padding: 12px 20px; border-radius: 1.2rem;
+        background: #fff; padding: 10px 20px; border-radius: 1.2rem;
         border: 2px solid #eee; box-shadow: 0 -5px 15px rgba(0,0,0,0.03);
     }
 
-    .instr-text { color: #666; font-size: 0.9em; font-weight: 700; margin-bottom: 6px; }
+    .instr-text { color: #555; font-size: 0.85em; font-weight: 800; margin-bottom: 4px; }
 
+    /* 拼音关闭时的收缩 */
     .hide-pinyin rt { display: none !important; }
     .hide-pinyin .text-content { line-height: 1.5 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. 数据库：内容完整对齐 (补全猫的对话) ---
+# --- 4. 数据库 ---
 LESSONS = {
     "Dialogue I": [
         {"r": "美美", "t": [("大卫", "Dàwèi"), ("，", ""), ("请问", "qǐngwèn"), ("，", ""), ("今天", "jīntiān"), ("几号", "jǐ hào"), ("？", "")] , "tr_es": "David, ¿qué fecha es hoy?", "tr_en": "David, what's the date today?"},
@@ -162,11 +166,12 @@ def main():
         st.title("Settings")
         ui_lang = st.selectbox("Language / Idioma", ["Español", "English"])
         ui = UI_TEXT[ui_lang]
+        st.divider()
         lesson_key = st.selectbox("Lección", list(LESSONS.keys()))
         show_pinyin = st.toggle(ui["pinyin"], value=True)
         show_trans = st.toggle(ui["trans"], value=False)
 
-    # 1. 顶部：自定义标题 (防止被切断)
+    # 1. 顶部标题
     st.markdown(f'<div class="main-header">{lesson_key}</div>', unsafe_allow_html=True)
     
     lesson_data = LESSONS[lesson_key]
@@ -180,7 +185,7 @@ def main():
             st.session_state.c_lesson = lesson_key
     st.audio(st.session_state.f_audio)
     
-    # 2. 中间：内部滚动的阅读卡片 (高度动态调整)
+    # 2. 中间：自适应滚动区
     p_class = "" if show_pinyin else "hide-pinyin"
     full_plain_text = ""
     
@@ -202,10 +207,9 @@ def main():
     html_card += '</div>'
     st.markdown(html_card, unsafe_allow_html=True)
 
-    # 3. 底部：练习区 (锁定在屏幕范围内)
+    # 3. 底部：锁定练习区
     st.markdown(f'<div class="typing-section"><p class="instr-text">✍️ {ui["typing_instr"]}</p></div>', unsafe_allow_html=True)
-    
-    user_input = st.text_input("Typing Practice", placeholder="Type here...", label_visibility="collapsed")
+    user_input = st.text_input("Typing Input", placeholder="Type here...", label_visibility="collapsed")
     
     if user_input:
         res = '<div style="background:white; padding:10px 15px; border-radius:10px; border:2px solid #ddd; margin-top:5px;">'
