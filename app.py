@@ -8,26 +8,32 @@ import random
 # --- 1. 页面基本配置 ---
 st.set_page_config(page_title="阅读智能体 Pro", page_icon="📖", layout="centered")
 
-# --- 2. 界面 UI 语言包 ---
+# --- 2. 界面 UI 语言包 (增加了详细的打字练习说明) ---
 UI_TEXT = {
     "Español": {
-        "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Afinando voz...",
-        "typing": "✍️ Práctica", "perfect": "🎉 ¡Excelente!"
+        "pinyin": "Pinyin", 
+        "trans": "Traducción", 
+        "audio_gen": "Afinando voz...",
+        "typing_title": "✍️ Práctica de Escritura",
+        "typing_instruction": "Escribe el texto de arriba aquí para mejorar tu habilidad de escritura.",
+        "perfect": "🎉 ¡Excelente trabajo!"
     },
     "English": {
-        "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Fine-tuning voice...",
-        "typing": "✍️ Practice", "perfect": "🎉 Perfect!"
+        "pinyin": "Pinyin", 
+        "trans": "Translation", 
+        "audio_gen": "Fine-tuning voice...",
+        "typing_title": "✍️ Typing Practice",
+        "typing_instruction": "Type the text above here to practice your typing skills.",
+        "perfect": "🎉 Perfect work!"
     }
 }
 
-# --- 3. 视觉设计 (CSS) - 颜色与间距深度调优 ---
+# --- 3. 视觉设计 (CSS) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
-    
     .stApp { background-color: #FFFBF0; }
     
-    /* 核心阅读卡片 */
     .reading-card {
         background-color: white;
         padding: 15px 25px;
@@ -38,18 +44,12 @@ st.markdown("""
         margin: 0 auto;
     }
 
-    .line-container {
-        display: flex;
-        margin-bottom: 2px;
-        align-items: flex-start;
-        padding-bottom: 2px;
-    }
+    .line-container { display: flex; margin-bottom: 2px; align-items: flex-start; padding-bottom: 2px; }
 
-    /* 角色标签：胭脂红 */
     .role-label {
         min-width: 60px;
         font-weight: 900;
-        color: #BE185D; 
+        color: #BE185D; /* 角色：胭脂红 */
         font-size: 1.05em;
         padding-top: 10px;
         font-family: 'Noto Serif SC', serif;
@@ -57,7 +57,6 @@ st.markdown("""
 
     .text-content { flex: 1; line-height: 2.7; }
 
-    /* 汉字：深色衬线体 */
     ruby {
         ruby-position: under;
         padding: 0 3px;
@@ -67,19 +66,17 @@ st.markdown("""
         color: #333;
     }
 
-    /* 拼音：根据要求调为绿色 */
     rt {
         font-family: 'Noto Sans SC', sans-serif;
         font-size: 12px;
-        color: #27ae60 !important; /* 👈 绿色拼音 */
+        color: #27ae60 !important; /* 拼音：绿色 */
         font-weight: 700;
         padding-top: 6px !important;
     }
 
-    /* 翻译：根据要求调为蓝色 */
     .trans-text { 
         font-size: 0.85em; 
-        color: #1d4ed8; /* 👈 蓝色翻译 */
+        color: #1d4ed8; /* 翻译：蓝色 */
         font-family: 'Noto Sans SC', sans-serif;
         font-weight: 600;
         font-style: italic; 
@@ -87,16 +84,23 @@ st.markdown("""
         opacity: 0.9;
     }
 
-    /* 拼音开关修复：彻底移除占位并压缩行高 */
     .hide-pinyin rt { display: none !important; }
     .hide-pinyin .text-content { line-height: 1.6 !important; }
     .hide-pinyin .role-label { padding-top: 4px !important; }
 
     .block-container { padding-top: 1.5rem !important; }
+    
+    /* 专门为练习说明设计的样式 */
+    .instruction-text {
+        font-size: 0.9em;
+        color: #666;
+        margin-bottom: 5px;
+        font-weight: 700;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. 数据库：包含双语翻译 ---
+# --- 4. 数据库：包含精准的双语翻译 ---
 LESSONS = {
     "Dialogue I": {
         "data": [
@@ -140,7 +144,7 @@ LESSONS = {
             {"r": "美美", "t": [("他", "tā"), ("有", "yǒu"), ("两", "liǎng"), ("只", "zhī"), ("猫", "māo"), ("。", "")] , 
              "tr_es": "Tiene dos.", "tr_en": "He has two cats."}
         ],
-        "audio": [("Xiaoxiao", "明天是星期六，你去学校吗？"), ("Yunxi", "我去。"), ("Xiaoxiao", "你去学校做什么？"), ("Yunxi", "我去学校看书。你呢？"), ("Xiaoxiao", "我不去。我去我的西班牙朋友家看猫。"), ("Yunxi", "是去西西家吗？"), ("Xiaoxiao", "是的。"), ("Yunxi", "西西家有几只猫？"), ("Xiaoxiao", "他有两只猫。")]
+        "audio": [("Xiaoxiao", "明天是星期六，你去学校吗？"), ("Yunxi", "我去。"), ("Xiaoxiao", "你去学校做什么？"), ("Yunxi", "我去学校看书。你呢？"), ("Xiaoxiao", "我不去。我去我的西班牙朋友家看猫真实版。"), ("Yunxi", "是去西西家吗？"), ("Xiaoxiao", "是的。"), ("Yunxi", "西西家有几只猫？"), ("Xiaoxiao", "他有两只猫。")]
     }
 }
 
@@ -153,7 +157,7 @@ async def make_voice(script, filename):
     ssml += "</speak>"
     await edge_tts.Communicate(ssml).save(filename)
 
-# --- 6. 主程序逻辑 ---
+# --- 6. 主程序 ---
 def main():
     if "audio_file" not in st.session_state: st.session_state.audio_file = ""
 
@@ -187,20 +191,20 @@ def main():
         for char, py in line["t"]:
             html_all += f'<ruby>{char}<rt>{py}</rt></ruby>'
             full_plain_text += char
-        
-        # 核心逻辑修复：根据 ui_lang 选择翻译字段
         if show_trans:
             t_content = line["tr_en"] if ui_lang == "English" else line["tr_es"]
             html_all += f'<span class="trans-text">{t_content}</span>'
-            
         html_all += '</div></div>'
     html_all += '</div>'
     
     st.markdown(html_all, unsafe_allow_html=True)
 
-    # 紧凑打字区
+    # 打字练习指令说明
     st.markdown("<br>", unsafe_allow_html=True)
-    user_input = st.text_input(ui["typing"], placeholder="Type here...")
+    st.markdown(f'<p class="instruction-text">✍️ {ui["typing_instruction"]}</p>', unsafe_allow_html=True)
+    
+    user_input = st.text_input(ui["typing_title"], placeholder="Type here...", label_visibility="collapsed")
+    
     if user_input:
         res = '<div style="background:white; padding:8px 15px; border-radius:12px; border:2px solid #eee; margin-top:5px;">'
         max_l = max(len(full_plain_text), len(user_input))
