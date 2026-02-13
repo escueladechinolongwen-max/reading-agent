@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>互动语法讲堂：的 (De) - High Contrast</title>
+    <!-- 引入 React 和 Tailwind -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入大师规范要求的字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'serif-sc': ['"Noto Serif SC"', 'serif'],
+                        'sans-sc': ['"Noto Sans SC"', 'sans-serif'],
+                        'mono': ['"Fira Code"', 'monospace'],
+                    },
+                    colors: {
+                        'cream': '#FFFBF0',
+                        // 背景色保持柔和
+                        'soft-pink': '#FF9A9E', 
+                        'soft-teal': '#4ECDC4', 
+                        'soft-orange': '#FAB1A0',
+                        'soft-blue': '#74B9FF',
+                        'soft-purple': '#A29BFE',
+                        
+                        // 文字色全面加深 (High Contrast)
+                        'deep-pink': '#BE185D', // 加深：接近胭脂红
+                        'deep-teal': '#0F766E', // 加深：接近墨绿
+                        'deep-orange': '#C2410C', // 加深
+                        'deep-blue': '#1D4ED8', // 加深
+                        'deep-purple': '#7E22CE', // 加深
+                    },
+                    animation: {
+                        'blob': 'blob 10s infinite',
+                        'pop-in': 'popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+                        'bounce-sm': 'bounceSm 2s infinite',
+                        'wiggle': 'wiggle 1s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' }
+                        },
+                        popIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.8)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' }
+                        },
+                        bounceSm: {
+                            '0%, 100%': { transform: 'translateY(-5%)' },
+                            '50%': { transform: 'translateY(0)' }
+                        },
+                        wiggle: {
+                            '0%, 100%': { transform: 'rotate(-3deg)' },
+                            '50%': { transform: 'rotate(3deg)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 响应式策略 */
+        @media (min-width: 768px) {
+            body { height: 100vh; overflow: hidden; }
+            #root { height: 100%; }
+        }
+        @media (max-width: 767px) {
+            body { height: auto; min-height: 100vh; overflow-y: auto; }
+            #root { height: auto; min-height: 100vh; }
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-cream font-sans-sc">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- Canvas Confetti ---
+        const ConfettiCanvas = ({ active }) => {
+            const canvasRef = useRef(null);
+            useEffect(() => {
+                if (!active) return;
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                
+                const particles = [];
+                const colors = ['#BE185D', '#0F766E', '#C2410C', '#7E22CE'];
+                for(let i=0; i<100; i++) {
+                    particles.push({
+                        x: canvas.width/2, y: canvas.height/2,
+                        vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        size: Math.random()*8+4
+                    });
+                }
+                
+                let animationId;
+                const render = () => {
+                    ctx.clearRect(0,0,canvas.width,canvas.height);
+                    particles.forEach((p,i) => {
+                        p.x+=p.vx; p.y+=p.vy; p.vy+=0.5; p.size*=0.96;
+                        ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y,p.size,p.size);
+                        if(p.size<0.5) particles.splice(i,1);
+                    });
+                    if(particles.length>0) animationId = requestAnimationFrame(render);
+                };
+                render();
+                return () => cancelAnimationFrame(animationId);
+            }, [active]);
+            return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-50" />;
+        };
+
+        const Icon = ({ path, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {path}
+            </svg>
+        );
+
+        const Icons = {
+            ArrowLeft: (props) => <Icon {...props} path={<path d="M19 12H5M12 19l-7-7 7-7"/>} />,
+            ArrowRight: (props) => <Icon {...props} path={<path d="M5 12h14M12 5l7 7-7 7"/>} />,
+            RefreshCw: (props) => <Icon {...props} path={<><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></>} />,
+            Star: (props) => <Icon {...props} path={<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>} />,
+            BookOpen: (props) => <Icon {...props} path={<><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></>} />,
+            Magic: (props) => <Icon {...props} path={<><path d="m2 9 3-3 3 3"/><path d="M13 2L2 13"/><path d="m11 13 3 3"/><path d="m16 9 3 3"/><path d="M16 22l6-11"/><path d="m22 2-3 3"/></>} />,
+            ChevronRight: (props) => <Icon {...props} path={<path d="m9 18 6-6-6-6"/>} />,
+        };
+
+        function LessonPreview() {
+            const [currentSlide, setCurrentSlide] = useState(0);
+            const [conceptStep, setConceptStep] = useState(0);
+            const [revealedRows, setRevealedRows] = useState({});
+            const [triggerConfetti, setTriggerConfetti] = useState(false);
+
+            const toggleRow = (index) => setRevealedRows(prev => ({ ...prev, [index]: !prev[index] }));
+            const resetTable = () => setRevealedRows({});
+            const revealAll = () => {
+                 const allRevealed = {};
+                 slides[currentSlide].tableData.forEach((_, index) => { allRevealed[index] = true; });
+                 setRevealedRows(allRevealed);
+                 setTriggerConfetti(true);
+                 setTimeout(() => setTriggerConfetti(false), 2000);
+            };
+
+            const slides = [
+                // Slide 1: Cover
+                { type: 'cover', title: '的', pinyin: 'De', meaning: 'Possession / Description', subMeaning: 'Structural Particle (助词)' },
+                
+                // Slide 2: Rules (Updated with textColor property for visual logic)
+                {
+                    type: 'progressive_concept', section: '核心用法 (Usage)', title: '修饰语的魔法',
+                    steps: [
+                        // Added 'textColor' to ensure the Modifier matches the Tag Color
+                        { label: 'Person', color: 'bg-soft-blue text-white', textColor: 'text-deep-blue', border: 'border-soft-blue', formula: 'Person (人)', icon: '👧', en: "my daughter's Chinese tea", cn: "我女儿的中国茶", py: "Wǒ nǚ'ér de Zhōngguó chá", desc: "Possession: It belongs to her." },
+                        { label: 'Adj', color: 'bg-soft-teal text-white', textColor: 'text-deep-teal', border: 'border-soft-teal', formula: 'Adj (形容词)', icon: '😋', en: "rich Chinese tea", cn: "好喝的中国茶", py: "Hǎohē de Zhōngguó chá", desc: "Description: What kind of tea?" },
+                        { label: 'Verb', color: 'bg-soft-orange text-white', textColor: 'text-deep-orange', border: 'border-soft-orange', formula: 'Verb (动词)', icon: '🛍️', en: "the Chinese tea (that) you buy", cn: "你买的中国茶", py: "Nǐ mǎi de Zhōngguó chá", desc: "Action: The tea that involves an action." },
+                        { label: '...', color: 'bg-soft-purple text-white', textColor: 'text-deep-purple', border: 'border-soft-purple', formula: '... (Location)', icon: '🪑', en: "the Chinese tea that is on the table", cn: "桌子上的中国茶", py: "Zhuōzi shàng de Zhōngguó chá", desc: "Location: Where is the tea?" }
+                    ]
+                },
+                
+                // Slide 3: Omission
+                {
+                    type: 'concept_omission', section: '高级用法 (Advanced)', title: 'Omitting the Noun', desc: 'When the noun is clear, you can drop it.'
+                },
+                
+                // Slide 4: Phrases (Updated with darker text colors)
+                {
+                    type: 'smart_list', title: '短语练习 (Phrases)', desc: 'Translate based on Image 1', theme: 'pink',
+                    tableData: [
+                        { icon: "👩‍🏫", en: "my teacher's table", cn: "我老师的桌子", py: "Wǒ lǎoshī de zhuōzi", highlight: "的" },
+                        { icon: "🍚", en: "rich chinese rice", cn: "好吃的中国米饭", py: "Hǎochī de Zhōngguó mǐfàn", highlight: "的" },
+                        { icon: "📚", en: "the spanish book that you buy", cn: "你买的西班牙书", py: "Nǐ mǎi de Xībānyá shū", highlight: "的" },
+                        { icon: "💻", en: "the computer (that is) on the table", cn: "桌子上的电脑", py: "Zhuōzi shàng de diànnǎo", highlight: "的" },
+                        { icon: "✅", en: "the computer (that is) on the table is mine", cn: "桌子上的电脑是我的。", py: "Zhuōzi shàng de diànnǎo shì wǒ de。", highlight: "的" }
+                    ]
+                },
+                
+                // Slide 5: Dialogue (Updated with darker text colors)
+                {
+                    type: 'smart_list', title: '对话练习 (Dialogue)', desc: 'Ask & Answer (Images 2 & 3)', theme: 'teal', isDialogue: true,
+                    tableData: [
+                        { 
+                            icon: "📖", 
+                            q_en: "Whose book is that under the chair?", 
+                            a_en: "It's mine.",
+                            q_cn: "椅子下面的书是谁的？", q_py: "Yǐzi xiàmian de shū shì shéi de?", 
+                            a_cn: "是我的。", a_py: "Shì wǒ de。", highlight: "的" 
+                        },
+                        { 
+                            icon: "💻", 
+                            q_en: "What country is your child's computer from?", 
+                            a_en: "It's from China.",
+                            q_cn: "你儿子的电脑是哪国的？", q_py: "Nǐ érzi de diànnǎo shì nǎ guó de?", 
+                            a_cn: "是中国的。", a_py: "Shì Zhōngguó de。", highlight: "的" 
+                        },
+                        { 
+                            icon: "👧", 
+                            q_en: "Which one is your daughter?", 
+                            a_en: "That person who is buying books is my daughter.",
+                            q_cn: "哪个是你女儿？", q_py: "Nǎge shì nǐ nǚ'ér?", 
+                            a_cn: "在买书的那个（人）是我女儿。", a_py: "Zài mǎi shū de nàge (rén) shì wǒ nǚ'ér。", highlight: "的" 
+                        },
+                        { 
+                            icon: "🗣️", 
+                            q_en: "Is she the person you're talking about?", 
+                            a_en: "Yeah.",
+                            q_cn: "她是你说的那个人吗？", q_py: "Tā shì nǐ shuō de nàge rén ma?", 
+                            a_cn: "是。", a_py: "Shì。", highlight: "的" 
+                        }
+                    ]
+                },
+                
+                // Slide 6: Summary
+                {
+                    type: 'summary', title: '📝 知识胶囊 (Capsule)',
+                    content: [
+                        { color: 'border-soft-pink bg-soft-pink/10 text-deep-pink', icon: '🔗', label: '的 (De)', meaning: 'Connects Modifier + Noun', fullEx: '好喝的茶 / 你买的茶', fullPy: 'Hǎohē de chá / Nǐ mǎi de chá' },
+                        { color: 'border-soft-teal bg-soft-teal/10 text-deep-teal', icon: '✂️', label: '省略 (Omission)', meaning: 'Drop noun after 的', fullEx: '这本书是我的。', fullPy: 'Zhè běn shū shì wǒ de。' }
+                    ]
+                }
+            ];
+
+            const nextSlide = () => { if (currentSlide < slides.length - 1) { setCurrentSlide(curr => curr + 1); setConceptStep(0); setRevealedRows({}); } };
+            const prevSlide = () => { if (currentSlide > 0) { setCurrentSlide(curr => curr - 1); setConceptStep(0); setRevealedRows({}); } };
+            const nextConceptStep = () => { if (conceptStep < slides[1].steps.length - 1) setConceptStep(curr => curr + 1); };
+            const prevConceptStep = () => { if (conceptStep > 0) setConceptStep(curr => curr - 1); };
+
+            const renderContent = () => {
+                const slide = slides[currentSlide];
+
+                if (slide.type === 'progressive_concept') {
+                    const currentData = slide.steps[conceptStep];
+                    return (
+                        <div className="flex flex-col h-full w-full relative overflow-hidden bg-cream/50 p-2 md:p-4">
+                            <div className="bg-white rounded-3xl px-4 py-3 shadow-md border-2 border-white mb-4 flex flex-col items-center justify-center relative z-10 shrink-0">
+                                <div className="flex items-center space-x-1 md:space-x-2 text-base md:text-xl font-black font-mono flex-wrap justify-center">
+                                    <span className="text-gray-400 text-2xl">【</span>
+                                    {slide.steps.map((step, idx) => (
+                                        <div key={idx} className={`transition-all duration-500 px-2 py-1 rounded-lg border ${idx === conceptStep ? `${step.color.replace('text-white', 'text-gray-800')} ${step.border} scale-105 shadow-sm` : idx < conceptStep ? 'bg-gray-100 text-gray-400 border-transparent scale-95' : 'opacity-0 w-0 overflow-hidden px-0 border-none'}`}>{step.formula}</div>
+                                    ))}
+                                    <span className="text-gray-400 text-2xl">】</span>
+                                    <span className="text-xl text-gray-300">+</span>
+                                    <div className="bg-soft-pink text-white w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-sm border border-white animate-bounce-sm text-lg font-serif-sc font-bold">的</div>
+                                    <span className="text-xl text-gray-300">+</span>
+                                    <div className="bg-gray-100 text-gray-500 px-3 py-1 rounded-lg border border-gray-200">Noun</div>
+                                </div>
+                            </div>
+                            <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+                                <div key={conceptStep} className="w-full max-w-5xl h-full flex items-center justify-center animate-pop-in px-2">
+                                    <div className={`bg-white rounded-[2.5rem] p-6 md:p-10 shadow-xl border-b-[8px] ${currentData.border} flex flex-col md:flex-row items-center justify-center w-full h-auto relative overflow-hidden`}>
+                                        <div className="md:w-1/3 flex flex-col items-center justify-center mb-6 md:mb-0 md:mr-8 md:border-r-2 md:border-gray-100 md:pr-8">
+                                            <div className="text-8xl md:text-9xl filter drop-shadow-sm animate-wiggle">{currentData.icon}</div>
+                                            <div className={`mt-4 ${currentData.color} px-4 py-1 rounded-full font-black text-xs uppercase tracking-widest shadow-md`}>{currentData.label}</div>
+                                        </div>
+                                        <div className="md:w-2/3 flex flex-col text-center md:text-left">
+                                            <div className="mb-6 w-full">
+                                                {/* Visual Syntax Coloring Logic Applied Here */}
+                                                <p className="text-3xl md:text-5xl text-gray-800 font-bold mb-3 font-serif-sc leading-relaxed">
+                                                    {(() => {
+                                                        const parts = currentData.cn.split('的');
+                                                        const modifier = parts[0];
+                                                        const noun = parts[1];
+                                                        return (
+                                                            <>
+                                                                <span className={`${currentData.textColor} border-b-4 ${currentData.border.replace('border-', 'border-opacity-30 border-')} pb-1 inline-block`}>
+                                                                    {modifier}
+                                                                </span>
+                                                                <span className="bg-soft-pink text-white px-3 rounded-xl mx-2 inline-block transform -rotate-2 shadow-md border-4 border-white font-serif-sc">
+                                                                    的
+                                                                </span>
+                                                                <span className="text-gray-700">
+                                                                    {noun}
+                                                                </span>
+                                                            </>
+                                                        );
+                                                    })()}
+                                                </p>
+                                                <p className="text-lg md:text-2xl text-gray-600 font-mono font-bold tracking-wide">{currentData.py}</p>
+                                            </div>
+                                            <div className="bg-gray-50 px-6 py-4 rounded-2xl border-2 border-gray-100 mb-4"><p className="text-gray-600 font-bold text-base md:text-lg">{currentData.en}</p></div>
+                                            <div className="text-sm md:text-base font-bold text-gray-500 bg-white/50 px-5 py-2 rounded-full border border-gray-100 self-center md:self-start">💡 {currentData.desc}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="h-16 shrink-0 flex items-center justify-center space-x-4 z-20 mt-2">
+                                <button onClick={prevConceptStep} disabled={conceptStep === 0} className={`p-3 rounded-full transition-all ${conceptStep === 0 ? 'opacity-20 cursor-not-allowed' : 'bg-white shadow-md text-gray-500 hover:scale-110'}`}><Icons.ArrowLeft className="w-5 h-5" /></button>
+                                <div className="flex space-x-2">{slide.steps.map((_, idx) => (<div key={idx} className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-all duration-300 ${idx === conceptStep ? 'bg-soft-pink w-6 md:w-8' : 'bg-gray-300'}`}></div>))}</div>
+                                <button onClick={nextConceptStep} disabled={conceptStep === slide.steps.length - 1} className={`px-6 py-2 rounded-full transition-all flex items-center font-bold shadow-lg transform active:scale-95 ${conceptStep === slide.steps.length - 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-soft-pink to-deep-pink text-white hover:scale-105'}`}><span className="text-sm md:text-base">Next Rule</span><Icons.ChevronRight className="w-4 h-4 ml-1" /></button>
+                            </div>
+                        </div>
+                    );
+                }
+
+                if (slide.type === 'concept_omission') {
+                    return (
+                        <div className="flex flex-col h-full w-full items-center justify-center text-center p-6 relative overflow-hidden animate-pop-in z-10">
+                            <div className="bg-white/80 p-8 rounded-[3rem] shadow-xl border-4 border-white max-w-2xl w-full">
+                                <h2 className="text-4xl font-black text-gray-800 mb-10 font-sans-sc">{slide.title}</h2>
+                                <div className="flex flex-col items-center justify-center space-y-8">
+                                    <div className="flex items-center space-x-4 opacity-50 scale-100">
+                                        <span className="text-4xl font-bold text-gray-600 font-serif-sc">我的</span>
+                                        <span className="text-4xl font-bold text-gray-600 line-through decoration-red-400 decoration-4 font-serif-sc">书</span>
+                                    </div>
+                                    <Icons.ArrowLeft className="w-12 h-12 text-soft-pink transform -rotate-90 animate-bounce" />
+                                    <div className="bg-soft-pink p-8 rounded-[2rem] shadow-2xl transform hover:scale-110 transition-transform cursor-pointer border-[6px] border-white">
+                                        <span className="text-6xl font-bold text-white font-serif-sc">我的</span>
+                                    </div>
+                                    <p className="text-2xl text-deep-pink font-bold mt-6">{slide.desc}</p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+
+                if (slide.type === 'smart_list') {
+                    const isPink = slide.theme === 'pink';
+                    const themeText = isPink ? 'text-deep-pink' : 'text-deep-teal';
+                    const themeBorder = isPink ? 'border-soft-pink' : 'border-soft-teal';
+                    const themeBg = isPink ? 'bg-soft-pink' : 'bg-soft-teal';
+                    const themeShadow = isPink ? 'shadow-pink-100' : 'shadow-teal-100';
+                    const themeLightBg = isPink ? 'bg-soft-pink/10' : 'bg-soft-teal/10';
+
+                    return (
+                        <div className="flex flex-col h-full w-full relative overflow-hidden">
+                            <div className="bg-white/90 backdrop-blur-md p-4 shadow-sm z-20 flex items-center justify-between shrink-0 mx-4 mt-4 rounded-[2rem] border-2 border-white/50">
+                                <div className="flex items-center">
+                                    <div className={`p-2 rounded-full ${themeBg} text-white mr-3 shadow-sm`}><Icons.Magic className="w-5 h-5" /></div>
+                                    <div><h2 className={`text-xl font-black ${themeText} font-sans-sc`}>{slide.title}</h2><p className="text-gray-500 text-xs font-bold">{slide.desc}</p></div>
+                                </div>
+                                <button onClick={resetTable} className="p-2 rounded-full hover:bg-gray-100 text-gray-400 transition-all"><Icons.RefreshCw className="w-5 h-5" /></button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar relative z-10 pb-28">
+                                {slide.tableData.map((row, index) => (
+                                    <div key={index} onClick={() => toggleRow(index)} className={`group relative bg-white rounded-[2.5rem] shadow-sm border-[3px] transition-all duration-300 cursor-pointer overflow-hidden transform hover:scale-[1.01] active:scale-[0.98] ${revealedRows[index] ? `${themeBorder} ${themeShadow}` : 'border-white hover:border-gray-100'}`}>
+                                        <div className="flex flex-col md:flex-row min-h-[110px]">
+                                            <div className="w-full md:w-5/12 p-5 flex items-center z-10 border-b-2 md:border-b-0 md:border-r-2 border-gray-50">
+                                                <div className="text-4xl mr-4 filter drop-shadow-sm">{row.icon}</div>
+                                                
+                                                {/* Left Column Content Logic */}
+                                                <div className="flex flex-col justify-center w-full">
+                                                    {slide.isDialogue ? (
+                                                        <div className="space-y-3">
+                                                            <div className="flex items-start">
+                                                                <span className="text-xs font-bold bg-gray-100 text-gray-500 px-1.5 rounded mr-2 mt-1">Q</span>
+                                                                <p className="text-gray-700 font-bold text-lg leading-snug">{row.q_en}</p>
+                                                            </div>
+                                                            <div className="flex items-start">
+                                                                <span className={`text-xs font-bold ${themeBg} text-white px-1.5 rounded mr-2 mt-1`}>A</span>
+                                                                <p className={`font-bold text-lg leading-snug ${themeText}`}>{row.a_en}</p>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-gray-700 font-bold text-lg leading-snug">{row.en}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Right Column (Reveal) */}
+                                            <div className={`w-full md:w-7/12 p-5 flex flex-col justify-center relative transition-colors duration-500 ${revealedRows[index] ? 'bg-white' : 'bg-[#FFFDF7]'}`}>
+                                                {!revealedRows[index] && (<div className="absolute inset-0 flex items-center justify-center"><div className={`bg-white/95 px-5 py-2 rounded-full shadow-sm ${themeText} font-black text-sm flex items-center animate-pulse border-2 border-white transform -rotate-1`}>Tap to Reveal</div></div>)}
+                                                <div className={`transition-all duration-500 transform ${revealedRows[index] ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}`}>
+                                                    {slide.isDialogue ? (
+                                                        <div className="flex flex-col space-y-4">
+                                                            <div className="flex items-start">
+                                                                <div className="flex flex-col">
+                                                                    <p className="text-lg text-gray-800 font-bold font-serif-sc leading-tight">
+                                                                        {row.q_cn.split(row.highlight).map((part, i, arr) => (<React.Fragment key={i}>{part}{i < arr.length - 1 && <span className={`${themeBg} text-white px-1.5 rounded mx-0.5 shadow-sm`}>{row.highlight}</span>}</React.Fragment>))}
+                                                                    </p>
+                                                                    {/* 拼音加深 */}
+                                                                    <p className="text-sm text-gray-600 font-mono mt-1 font-bold">{row.q_py}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className={`${themeLightBg} p-3 rounded-2xl flex items-start`}>
+                                                                <div className="flex flex-col">
+                                                                    <p className={`text-lg ${themeText} font-bold font-serif-sc leading-tight`}>{row.a_cn}</p>
+                                                                    {/* 拼音加深且移除透明度 */}
+                                                                    <p className={`text-sm ${themeText} font-mono mt-1 font-bold`}>{row.a_py}</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <p className="text-xl text-gray-800 font-bold mb-1 leading-relaxed font-serif-sc">{row.cn.split(row.highlight).map((part, i, arr) => (<React.Fragment key={i}>{part}{i < arr.length - 1 && <span className={`${themeBg} text-white px-2 rounded-lg mx-1 inline-block shadow-sm transform -rotate-1 animate-pop-in`}>{row.highlight}</span>}</React.Fragment>))}</p>
+                                                            {/* 拼音加深 */}
+                                                            <p className="text-sm text-gray-600 font-mono font-bold tracking-wide">{row.py}</p>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="absolute bottom-4 right-4 z-20"><button onClick={revealAll} className={`${themeBg} hover:brightness-110 text-white px-5 py-3 rounded-full shadow-lg transform hover:-translate-y-1 hover:scale-105 transition-all flex items-center font-black text-sm border-4 border-white/30`}><Icons.Star className="w-5 h-5 mr-2 animate-spin-slow" /> Show All</button></div>
+                        </div>
+                    );
+                }
+
+                if (slide.type === 'summary') {
+                    return (
+                        <div className="flex flex-col h-full w-full px-6 py-8 animate-pop-in overflow-hidden relative z-10">
+                            <div className="flex items-center justify-center space-x-3 mb-6 shrink-0"><div className="bg-white p-3 rounded-full shadow-md"><Icons.BookOpen className="w-8 h-8 text-deep-pink" /></div><h2 className="text-3xl font-black text-gray-700 font-sans-sc">{slide.title}</h2></div>
+                            <div className="flex-1 overflow-y-auto space-y-4 no-scrollbar pb-24">
+                                {slide.content.map((item, idx) => (
+                                    <div key={idx} className={`p-6 rounded-[2rem] border-l-8 ${item.color} shadow-sm bg-white transform transition-transform hover:scale-[1.01]`}>
+                                        <div className="flex items-center space-x-4 mb-3"><div className="text-4xl filter drop-shadow-md">{item.icon}</div><div className="flex-1 flex flex-col"><span className="font-bold text-xl text-gray-800 font-serif-sc">{item.label}</span><span className="text-xs font-bold uppercase tracking-wider opacity-60 text-gray-600">{item.meaning}</span></div></div>
+                                        <div className="bg-cream px-4 py-3 rounded-2xl border-2 border-white"><div className="text-lg text-gray-700 font-bold mb-1 font-serif-sc">{item.fullEx}</div><div className="text-sm text-gray-600 font-mono font-medium">{item.fullPy}</div></div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                }
+
+                return (
+                    <div className="flex flex-col h-full w-full items-center justify-center text-center p-6 relative overflow-hidden animate-pop-in z-10">
+                        <div className="relative z-10 transform transition-all hover:scale-105 mb-8">
+                            <div className="bg-white p-8 rounded-[3rem] shadow-xl border-[6px] border-soft-pink transform rotate-2">
+                                <div className="text-8xl md:text-9xl font-black text-deep-pink font-serif-sc drop-shadow-md">的</div>
+                            </div>
+                            <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 bg-soft-teal text-white px-6 py-2 rounded-full font-serif-sc font-bold text-xl shadow-md border-4 border-white">{slide.pinyin}</div>
+                        </div>
+                        <div className="bg-white/60 backdrop-blur-md px-8 py-6 rounded-[2rem] border-2 border-white z-10 w-full max-w-md mt-6">
+                            <span className="text-2xl text-gray-700 font-black block mb-2 font-sans-sc">{slide.meaning}</span>
+                            <span className="text-sm text-gray-500 font-bold uppercase tracking-widest">{slide.subMeaning}</span>
+                        </div>
+                    </div>
+                );
+            };
+
+            const isListMode = slides[currentSlide].type === 'smart_list' || slides[currentSlide].type === 'summary';
+
+            return (
+                <div className="w-full h-full flex flex-col font-sans-sc relative selection:bg-soft-pink selection:text-white bg-cream">
+                    <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                        <div className="absolute top-[-10%] left-[-10%] w-80 h-80 bg-soft-pink rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob"></div>
+                        <div className="absolute top-[20%] right-[-10%] w-72 h-72 bg-soft-blue rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000"></div>
+                    </div>
+                    <ConfettiCanvas active={triggerConfetti} />
+                    
+                    <div className="flex-1 flex items-center justify-center p-3 md:p-6 overflow-hidden relative z-10 mobile-stack">
+                        <div className={`relative bg-white/40 backdrop-blur-xl shadow-2xl overflow-hidden transition-all duration-500 ease-out flex flex-col border-[6px] border-white ring-1 ring-gray-100 ${isListMode || slides[currentSlide].type === 'progressive_concept' ? 'w-full max-w-6xl h-full rounded-[3rem]' : 'w-full max-w-5xl aspect-video rounded-[3rem]'}`}>
+                            {renderContent()}
+                        </div>
+                    </div>
+
+                    <div className="h-24 shrink-0 flex items-center justify-center z-50 pointer-events-none sticky bottom-0">
+                        <div className="bg-white/90 backdrop-blur-lg px-6 py-2 rounded-full shadow-xl border-b-[6px] border-gray-100 pointer-events-auto flex items-center space-x-6 mb-6 transform hover:scale-105 transition-transform duration-300">
+                            <button onClick={prevSlide} disabled={currentSlide === 0} className={`p-4 rounded-full transition-all active:scale-90 ${currentSlide === 0 ? 'bg-gray-50 text-gray-200 cursor-not-allowed' : 'bg-soft-pink/30 text-deep-pink hover:bg-soft-pink/50'}`}><Icons.ArrowLeft className="w-6 h-6" /></button>
+                            <div className="flex flex-col items-center min-w-[80px]"><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Slide</span><div className="text-xl font-black text-gray-700 font-sans-sc">{currentSlide + 1} <span className="text-gray-400 text-sm">/</span> {slides.length}</div></div>
+                            <button onClick={nextSlide} disabled={currentSlide === slides.length - 1} className={`p-4 rounded-full transition-all active:scale-90 ${currentSlide === slides.length - 1 ? 'bg-gray-50 text-gray-200 cursor-not-allowed' : 'bg-soft-pink/30 text-deep-pink hover:bg-soft-pink/50'}`}><Icons.ArrowRight className="w-6 h-6" /></button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<LessonPreview />);
+    </script>
+</body>
+</html>
