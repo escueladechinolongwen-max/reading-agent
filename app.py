@@ -4,11 +4,11 @@ import edge_tts
 import os
 import time
 import random
-import re  # 导入正则表达式库，用于清洗文本
+import re
 
 # --- 1. 页面基本配置 ---
 st.set_page_config(
-    page_title="阅读 Pro - V22 终极纯净版", 
+    page_title="阅读 Pro - V23 强制重录版", 
     page_icon="🛡️", 
     layout="wide"
 )
@@ -16,103 +16,48 @@ st.set_page_config(
 # --- 2. 界面双语语言包 ---
 UI_TEXT = {
     "Español": {
-        "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Generando audio puro...",
+        "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Generando audio nuevo...",
         "typing_title": "✍️ Práctica", "typing_instr": "Escribe el texto de arriba aquí.", 
-        "perfect": "🎉 ¡Correcto!"
+        "perfect": "🎉 ¡Correcto!", "refresh": "🔄 Regenerar Audio"
     },
     "English": {
-        "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Generating pure audio...",
+        "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Generating fresh audio...",
         "typing_title": "✍️ Practice", "typing_instr": "Type the text above here.", 
-        "perfect": "🎉 Correct!"
+        "perfect": "🎉 Correct!", "refresh": "🔄 Regenerate Audio"
     }
 }
 
-# --- 3. 视觉设计 (CSS) - 智能响应式 ---
+# --- 3. 视觉设计 (CSS) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
     
     .stApp { background-color: #FFFBF0; }
-    
-    /* 顶部紧凑化 */
-    .block-container { 
-        padding-top: 1rem !important; 
-        padding-bottom: 1rem !important; 
-        max-width: 1000px !important; 
-    }
+    .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; max-width: 1000px !important; }
 
-    /* 智能阅读框：高度自适应 */
+    /* 智能阅读框 */
     .reading-scroll-area {
-        background-color: white; 
-        padding: 15px 25px; 
-        border-radius: 1.5rem;
-        border: 2px solid #eee;
-        overflow-y: auto;
-        margin-bottom: 10px;
-        transition: height 0.3s ease;
+        background-color: white; padding: 15px 25px; border-radius: 1.5rem;
+        border: 2px solid #eee; overflow-y: auto; margin-bottom: 10px; transition: height 0.3s ease;
     }
-
-    /* 🧠 智能断点逻辑 */
     @media (min-height: 901px) { .reading-scroll-area { height: 60vh; } }
     @media (max-height: 900px) { .reading-scroll-area { height: 50vh; } }
     @media (max-height: 700px) { .reading-scroll-area { height: 40vh; } }
 
-    .line-container { 
-        display: flex; margin-bottom: 6px; align-items: flex-start;
-        justify-content: space-between; padding-bottom: 6px; border-bottom: 1px solid #fcfcfc;
-    }
-
+    .line-container { display: flex; margin-bottom: 6px; align-items: flex-start; justify-content: space-between; padding-bottom: 6px; border-bottom: 1px solid #fcfcfc; }
     .left-zone { display: flex; flex: 1; align-items: flex-start; max-width: 75%; }
-
-    .role-label {
-        min-width: 50px; font-weight: 900; color: #BE185D; 
-        font-size: 0.95em; padding-top: 8px; font-family: 'Noto Serif SC', serif;
-    }
-
+    .role-label { min-width: 50px; font-weight: 900; color: #BE185D; font-size: 0.95em; padding-top: 8px; font-family: 'Noto Serif SC', serif; }
     .text-content { line-height: 2.6; }
-
-    ruby { 
-        ruby-position: under; padding: 0 2px; font-family: "Noto Serif SC", serif; 
-        font-size: 22px; font-weight: 900; color: #333; 
-    }
-
-    rt { 
-        font-family: 'Noto Sans SC', sans-serif; font-size: 11px; 
-        color: #15803D !important; font-weight: 700; padding-top: 5px !important; 
-    }
-
-    .right-zone {
-        width: 22%; background: #EFF6FF; border-left: 3px solid #3B82F6;
-        padding: 5px 10px; border-radius: 8px; margin-top: 5px;
-    }
-
-    .trans-text { 
-        font-size: 0.8rem; color: #1D4ED8; 
-        font-family: 'Noto Sans SC', sans-serif; font-weight: 700; line-height: 1.2;
-    }
-
-    /* 底部打字区 */
-    .typing-section {
-        background: #fff; padding: 8px 20px; border-radius: 1rem;
-        border: 2px solid #eee; box-shadow: 0 -4px 10px rgba(0,0,0,0.02);
-    }
-
+    ruby { ruby-position: under; padding: 0 2px; font-family: "Noto Serif SC", serif; font-size: 22px; font-weight: 900; color: #333; }
+    rt { font-family: 'Noto Sans SC', sans-serif; font-size: 11px; color: #15803D !important; font-weight: 700; padding-top: 5px !important; }
+    .right-zone { width: 22%; background: #EFF6FF; border-left: 3px solid #3B82F6; padding: 5px 10px; border-radius: 8px; margin-top: 5px; }
+    .trans-text { font-size: 0.8rem; color: #1D4ED8; font-family: 'Noto Sans SC', sans-serif; font-weight: 700; line-height: 1.2; }
+    .typing-section { background: #fff; padding: 8px 20px; border-radius: 1rem; border: 2px solid #eee; box-shadow: 0 -4px 10px rgba(0,0,0,0.02); }
     .instr-text { color: #666; font-size: 0.8em; font-weight: 700; margin-bottom: 2px; }
-
     .hide-pinyin rt { display: none !important; }
     .hide-pinyin .text-content { line-height: 1.4 !important; }
-    
-    .main-header {
-        font-family: 'Noto Serif SC', serif; font-weight: 900; color: #333;
-        font-size: 1.5rem; text-align: center; margin-bottom: 0px;
-    }
-    
-    /* 版本号标签样式 */
-    .version-tag {
-        background-color: #d1fae5; color: #065f46; 
-        padding: 4px 8px; border-radius: 6px; 
-        font-size: 0.8rem; font-weight: bold; border: 1px solid #34d399;
-    }
+    .main-header { font-family: 'Noto Serif SC', serif; font-weight: 900; color: #333; font-size: 1.5rem; text-align: center; margin-bottom: 0px; }
+    .version-tag { background-color: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; border: 1px solid #f87171; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -141,53 +86,56 @@ LESSONS = {
     ]
 }
 
-# --- 5. 语音合成核心逻辑 (物理拼接 + 强力清洗) ---
-async def make_audio_segments(lesson_data, filename):
-    # 创建一个空文件用于拼接
+# --- 5. 语音合成核心逻辑 (V23 白名单机制) ---
+async def make_audio_v23(lesson_data, filename):
+    # 创建文件
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(lesson_data):
-            # 1. 强制指定声音
+            # 1. 强制角色
             voice = "zh-CN-XiaoxiaoNeural" if line["r"] == "美美" else "zh-CN-YunxiNeural"
             
-            # 2. 提取原始文本
-            raw_text = "".join([pair[0] for pair in line["t"]])
+            # 2. 提取文本
+            raw = "".join([pair[0] for pair in line["t"]])
+            # 修正数字
+            txt = raw.replace("9月", "九月").replace("1号", "一号").replace("2号", "二号").replace("8月", "八月").replace("31号", "三十一号")
             
-            # 3. 语义替换 (数字转汉字)
-            text_fixed = raw_text.replace("9月", "九月").replace("1号", "一号").replace("2号", "二号").replace("8月", "八月").replace("31号", "三十一号")
+            # 3. 🛡️ 白名单过滤：只允许汉字、中文标点、数字。其他全部杀掉。
+            # 这行代码保证了 "xml", "slash", "equals" 根本无法进入 TTS 引擎
+            clean = re.sub(r'[^\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef0-9]', '', txt)
             
-            # 4. ☢️ 核弹级清洗：删除所有英文字母、符号(除了标点)，确保绝对不含代码
-            # 只保留：中文字符、中文标点、数字
-            clean_text = re.sub(r'[a-zA-Z<>=/\\_]', '', text_fixed)
-            
-            # 5. 生成单独片段
-            temp_fname = f"temp_{i}.mp3"
+            # 4. 生成片段
+            temp_f = f"t_{i}_{int(time.time())}.mp3"
             try:
-                communicate = edge_tts.Communicate(clean_text, voice)
-                await communicate.save(temp_fname)
-                
-                # 6. 拼接到总文件
-                with open(temp_fname, 'rb') as chunk:
+                # 纯文本模式，无任何 SSML 标签
+                communicate = edge_tts.Communicate(clean, voice)
+                await communicate.save(temp_f)
+                with open(temp_f, 'rb') as chunk:
                     final_file.write(chunk.read())
-            except Exception as e:
-                print(f"Error generating line {i}: {e}")
+            except:
+                pass
             finally:
-                # 7. 清理垃圾
-                if os.path.exists(temp_fname):
-                    os.remove(temp_fname)
+                if os.path.exists(temp_f): os.remove(temp_f)
 
 # --- 6. 主程序 ---
 def main():
-    if "f_audio" not in st.session_state: st.session_state.f_audio = ""
+    # ⚠️ 更改状态变量名，强制让 Streamlit 认为这是第一次运行
+    if "audio_v23" not in st.session_state: st.session_state.audio_v23 = ""
+    if "lesson_v23" not in st.session_state: st.session_state.lesson_v23 = ""
 
     with st.sidebar:
-        # --- 🚨 版本验证区 ---
-        st.markdown('<div class="version-tag">🚀 V22.0 终极纯净版</div>', unsafe_allow_html=True)
-        st.caption("如果没看到上面的 V22.0，请重启应用！")
+        st.markdown('<div class="version-tag">🔴 V23.0 强制刷新版</div>', unsafe_allow_html=True)
+        st.caption("现在是最新版本！")
         st.divider()
         
         st.title("Settings")
         ui_lang = st.selectbox("Language", ["Español", "English"])
         ui = UI_TEXT[ui_lang]
+        
+        # 🔄 手动刷新按钮
+        if st.button(ui["refresh"], type="primary"):
+            st.session_state.lesson_v23 = "" # 清空记录，强制重录
+            st.rerun()
+
         st.divider()
         lesson_key = st.selectbox("Lección", list(LESSONS.keys()))
         show_pinyin = st.toggle(ui["pinyin"], value=True)
@@ -197,18 +145,18 @@ def main():
     
     lesson_data = LESSONS[lesson_key]
     
-    # 语音处理 (强制刷新缓存)
-    if "c_lesson" not in st.session_state or st.session_state.c_lesson != lesson_key:
-        fname = f"dialogue_v22_{int(time.time())}.mp3" # 文件名带版本号
+    # 逻辑：如果当前课文 != 缓存的课文，或者缓存为空，则重新生成
+    if st.session_state.lesson_v23 != lesson_key:
+        fname = f"audio_v23_{int(time.time())}.mp3"
         with st.spinner(ui["audio_gen"]):
-            asyncio.run(make_audio_segments(lesson_data, fname))
-            st.session_state.f_audio = fname
-            st.session_state.c_lesson = lesson_key
-    st.audio(st.session_state.f_audio)
+            asyncio.run(make_audio_v23(lesson_data, fname))
+            st.session_state.audio_v23 = fname
+            st.session_state.lesson_v23 = lesson_key
     
-    # 渲染滚动区
+    st.audio(st.session_state.audio_v23)
+    
+    # 渲染
     p_class = "" if show_pinyin else "hide-pinyin"
-    
     html_card = f'<div class="reading-scroll-area {p_class}">'
     for line in lesson_data:
         html_card += '<div class="line-container">'
@@ -226,28 +174,23 @@ def main():
     html_card += '</div>'
     st.markdown(html_card, unsafe_allow_html=True)
 
-    # 底部练习区
+    # 底部
     st.markdown(f'<div class="typing-section"><p class="instr-text">✍️ {ui["typing_instr"]}</p></div>', unsafe_allow_html=True)
+    user_input = st.text_input("inp", placeholder="Type here...", label_visibility="collapsed")
     
-    user_input = st.text_input("input_box", placeholder="Type here...", label_visibility="collapsed")
+    full_text = "".join(["".join([p[0] for p in l["t"]]) for l in lesson_data])
     
-    # 构建纯文本用于比对
-    full_plain_text = ""
-    for line in lesson_data:
-        for char, _ in line["t"]:
-            full_plain_text += char
-
     if user_input:
         res = '<div style="background:white; padding:8px 15px; border-radius:10px; border:2px solid #ddd; margin-top:5px;">'
-        max_l = max(len(full_plain_text), len(user_input))
+        max_l = max(len(full_text), len(user_input))
         for i in range(max_l):
-            if i < len(user_input) and i < len(full_plain_text):
-                color = "#2ecc71" if user_input[i] == full_plain_text[i] else "#e74c3c"
+            if i < len(user_input) and i < len(full_text):
+                color = "#2ecc71" if user_input[i] == full_text[i] else "#e74c3c"
                 res += f'<span style="color:{color}; font-size:18px; font-weight:bold;">{user_input[i]}</span>'
             elif i < len(user_input):
                 res += f'<span style="color:#e74c3c; font-size:18px;">{user_input[i]}</span>'
         st.markdown(res + '</div>', unsafe_allow_html=True)
-        if user_input.strip() == full_plain_text.strip(): st.balloons()
+        if user_input.strip() == full_text.strip(): st.balloons()
 
 if __name__ == "__main__":
     main()
