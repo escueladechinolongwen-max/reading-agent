@@ -4,24 +4,26 @@ import edge_tts
 import os
 import time
 import random
-import html
+import re  # 导入正则表达式库，用于清洗文本
 
 # --- 1. 页面基本配置 ---
 st.set_page_config(
-    page_title="阅读 Pro - 终极语音修复版", 
-    page_icon="🎓", 
+    page_title="阅读 Pro - V22 终极纯净版", 
+    page_icon="🛡️", 
     layout="wide"
 )
 
 # --- 2. 界面双语语言包 ---
 UI_TEXT = {
     "Español": {
-        "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Generando diálogo real...",
-        "typing_title": "✍️ Práctica", "typing_instr": "Escribe el texto de arriba aquí.", "perfect": "🎉 ¡Excelente!"
+        "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Generando audio puro...",
+        "typing_title": "✍️ Práctica", "typing_instr": "Escribe el texto de arriba aquí.", 
+        "perfect": "🎉 ¡Correcto!"
     },
     "English": {
-        "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Generating real dialogue...",
-        "typing_title": "✍️ Practice", "typing_instr": "Type the text above here.", "perfect": "🎉 Perfect!"
+        "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Generating pure audio...",
+        "typing_title": "✍️ Practice", "typing_instr": "Type the text above here.", 
+        "perfect": "🎉 Correct!"
     }
 }
 
@@ -34,7 +36,7 @@ st.markdown("""
     
     /* 顶部紧凑化 */
     .block-container { 
-        padding-top: 1.5rem !important; 
+        padding-top: 1rem !important; 
         padding-bottom: 1rem !important; 
         max-width: 1000px !important; 
     }
@@ -104,6 +106,13 @@ st.markdown("""
         font-family: 'Noto Serif SC', serif; font-weight: 900; color: #333;
         font-size: 1.5rem; text-align: center; margin-bottom: 0px;
     }
+    
+    /* 版本号标签样式 */
+    .version-tag {
+        background-color: #d1fae5; color: #065f46; 
+        padding: 4px 8px; border-radius: 6px; 
+        font-size: 0.8rem; font-weight: bold; border: 1px solid #34d399;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -132,37 +141,50 @@ LESSONS = {
     ]
 }
 
-# --- 5. 语音合成核心逻辑 (物理拼接法) ---
-# 警告：这是为了彻底解决“念代码”问题的终极方案
+# --- 5. 语音合成核心逻辑 (物理拼接 + 强力清洗) ---
 async def make_audio_segments(lesson_data, filename):
-    # 1. 创建一个空文件用于拼接
+    # 创建一个空文件用于拼接
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(lesson_data):
-            # 2. 强制指定声音
+            # 1. 强制指定声音
             voice = "zh-CN-XiaoxiaoNeural" if line["r"] == "美美" else "zh-CN-YunxiNeural"
             
-            # 3. 提取纯文本 (移除所有拼音、代码符号)
-            text = "".join([pair[0] for pair in line["t"]])
-            # 修正发音
-            text = text.replace("9月", "九月").replace("1号", "一号").replace("2号", "二号").replace("8月", "八月").replace("31号", "三十一号")
+            # 2. 提取原始文本
+            raw_text = "".join([pair[0] for pair in line["t"]])
             
-            # 4. 生成单独的小片段
+            # 3. 语义替换 (数字转汉字)
+            text_fixed = raw_text.replace("9月", "九月").replace("1号", "一号").replace("2号", "二号").replace("8月", "八月").replace("31号", "三十一号")
+            
+            # 4. ☢️ 核弹级清洗：删除所有英文字母、符号(除了标点)，确保绝对不含代码
+            # 只保留：中文字符、中文标点、数字
+            clean_text = re.sub(r'[a-zA-Z<>=/\\_]', '', text_fixed)
+            
+            # 5. 生成单独片段
             temp_fname = f"temp_{i}.mp3"
-            communicate = edge_tts.Communicate(text, voice)
-            await communicate.save(temp_fname)
-            
-            # 5. 拼接到总文件中
-            with open(temp_fname, 'rb') as chunk:
-                final_file.write(chunk.read())
-            
-            # 6. 清理临时片段
-            os.remove(temp_fname)
+            try:
+                communicate = edge_tts.Communicate(clean_text, voice)
+                await communicate.save(temp_fname)
+                
+                # 6. 拼接到总文件
+                with open(temp_fname, 'rb') as chunk:
+                    final_file.write(chunk.read())
+            except Exception as e:
+                print(f"Error generating line {i}: {e}")
+            finally:
+                # 7. 清理垃圾
+                if os.path.exists(temp_fname):
+                    os.remove(temp_fname)
 
 # --- 6. 主程序 ---
 def main():
     if "f_audio" not in st.session_state: st.session_state.f_audio = ""
 
     with st.sidebar:
+        # --- 🚨 版本验证区 ---
+        st.markdown('<div class="version-tag">🚀 V22.0 终极纯净版</div>', unsafe_allow_html=True)
+        st.caption("如果没看到上面的 V22.0，请重启应用！")
+        st.divider()
+        
         st.title("Settings")
         ui_lang = st.selectbox("Language", ["Español", "English"])
         ui = UI_TEXT[ui_lang]
@@ -175,9 +197,9 @@ def main():
     
     lesson_data = LESSONS[lesson_key]
     
-    # 语音处理
+    # 语音处理 (强制刷新缓存)
     if "c_lesson" not in st.session_state or st.session_state.c_lesson != lesson_key:
-        fname = f"dialogue_{int(time.time())}.mp3" # 随机文件名防止缓存
+        fname = f"dialogue_v22_{int(time.time())}.mp3" # 文件名带版本号
         with st.spinner(ui["audio_gen"]):
             asyncio.run(make_audio_segments(lesson_data, fname))
             st.session_state.f_audio = fname
