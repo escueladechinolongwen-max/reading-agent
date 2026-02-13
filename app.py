@@ -24,26 +24,26 @@ UI_TEXT = {
     }
 }
 
-# --- 3. 视觉设计 (CSS) - 颜色与间距精修 ---
+# --- 3. 视觉设计 (CSS) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
     .stApp { background-color: #FFFBF0; }
     
     .reading-card {
-        background-color: white; padding: 20px 30px; border-radius: 2rem;
+        background-color: white; padding: 15px 25px; border-radius: 2rem;
         border: 4px solid white; box-shadow: 0 10px 30px rgba(0,0,0,0.04);
         max-width: 700px; margin: 0 auto;
     }
     .line-container { display: flex; margin-bottom: 5px; align-items: flex-start; }
     
-    /* 角色：胭脂红 */
+    /* 角色名：胭脂红 */
     .role-label {
         min-width: 65px; font-weight: 900; color: #BE185D; 
         font-size: 1.05em; padding-top: 10px; font-family: 'Noto Serif SC', serif;
     }
     .text-content { flex: 1; line-height: 2.8; }
-    ruby { ruby-position: under; padding: 0 3px; font-family: "Noto Serif SC", serif; font-size: 24px; font-weight: 900; color: #333; }
+    ruby { ruby-position: under; padding: 0 3px; font-family: "Noto Serif SC", serif; font-size: 23px; font-weight: 900; color: #333; }
     
     /* 拼音：绿色 */
     rt { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: #27ae60 !important; font-weight: 700; padding-top: 8px !important; }
@@ -56,46 +56,46 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. 数据库：完全对齐课文内容 ---
+# --- 4. 数据库：完全补全课文内容 ---
 LESSONS = {
-    "Dialogue I": {
-        "data": [
-            {"r": "美美", "t": [("大卫", "Dàwèi"), ("，", ""), ("请问", "qǐngwèn"), ("，", ""), ("今天", "jīntiān"), ("几号", "jǐ hào"), ("？", "")] , "tr_es": "David, disculpe, ¿qué fecha es hoy?", "tr_en": "David, what is the date today?"},
-            {"r": "大卫", "t": [("今天", "jīntiān"), ("9月1号", "jiǔ yuè yī hào"), ("。", "")] , "tr_es": "Hoy es 1 de septiembre.", "tr_en": "Today is September 1st."},
-            {"r": "美美", "t": [("今天", "jīntiān"), ("星期几", "xīngqī jǐ"), ("？", "")] , "tr_es": "¿Qué día es hoy?", "tr_en": "What day of the week is today?"},
-            {"r": "大卫", "t": [("星期三", "xīngqī sān"), ("。", "")] , "tr_es": "Miércoles.", "tr_en": "Wednesday."},
-            {"r": "美美", "t": [("明天", "míngtiān"), ("几月几号", "jǐ yuè jǐ hào"), ("？", "")] , "tr_es": "¿Qué fecha es mañana?", "tr_en": "What's the date tomorrow?"},
-            {"r": "大卫", "t": [("明天", "míngtiān"), ("9月2号", "jiǔ yuè èr hào"), ("。", "")] , "tr_es": "Mañana es 2 de sept.", "tr_en": "Tomorrow is September 2nd."},
-            {"r": "美美", "t": [("昨天", "zuótiān"), ("呢", "ne"), ("？", "")] , "tr_es": "¿Y ayer?", "tr_en": "And yesterday?"},
-            {"r": "大卫", "t": [("昨天", "zuótiān"), ("是", "shì"), ("8月31号", "bā yuè sānshíyī hào"), ("。", "")] , "tr_es": "Ayer fue 31 de agosto.", "tr_en": "Yesterday was August 31st."}
-        ],
-        "audio_script": [("Xiaoxiao", "大卫，请问，今天几号？"), ("Yunxi", "今天九月一号。"), ("Xiaoxiao", "今天星期几？"), ("Yunxi", "星期三。"), ("Xiaoxiao", "明天几月几号？"), ("Yunxi", "明天九月二号。"), ("Xiaoxiao", "昨天呢？"), ("Yunxi", "昨天是八月三十一号。")]
-    },
-    "Dialogue II": {
-        "data": [
-            {"r": "美美", "t": [("明天", "míngtiān"), ("是", "shì"), ("星期六", "xīngqīliù"), ("，", ""), ("你", "nǐ"), ("去", "qù"), ("学校", "xuéxiào"), ("吗", "ma"), ("？", "")] , "tr_es": "¿Vas a la escuela mañana?", "tr_en": "Are you going to school tomorrow?"},
-            {"r": "大卫", "t": [("我", "wǒ"), ("去", "qù"), ("。", "")] , "tr_es": "Sí, voy.", "tr_en": "Yes, I am."},
-            {"r": "美美", "t": [("你", "nǐ"), ("去", "qù"), ("学校", "xuéxiào"), ("做", "zuò"), ("什么", "shénme"), ("？", "")] , "tr_es": "¿A qué vas?", "tr_en": "What will you do there?"},
-            {"r": "大卫", "t": [("我", "wǒ"), ("去", "qù"), ("学校", "xuéxiào"), ("看书", "kànshū"), ("。", ""), ("你", "nǐ"), ("吗", "ma"), ("？", "")] , "tr_es": "A leer. ¿Y tú?", "tr_en": "To read. And you?"},
-            {"r": "美美", "t": [("我", "wǒ"), ("不", "bù"), ("去", "qù"), ("。", ""), ("我", "wǒ"), ("去", "qù"), ("我", "wǒ"), ("的", "de"), ("西班牙朋友", "Xībānyá péngyou"), ("家", "jiā"), ("看猫", "kàn māo"), ("。", "")] , "tr_es": "Voy a casa de mi amigo.", "tr_en": "I'm going to my friend's house."},
-            {"r": "大卫", "t": [("是", "shì"), ("去", "qù"), ("西西", "Xīxi"), ("家", "jiā"), ("吗", "ma"), ("？", "")] , "tr_es": "¿A casa de Xixi?", "tr_en": "To Xixi's house?"},
-            {"r": "美美", "t": [("是的", "shìde"), ("。", "")] , "tr_es": "Sí.", "tr_en": "Yes."},
-            {"r": "大卫", "t": [("西西", "Xīxi"), ("家", "jiā"), ("有", "yǒu"), ("几", "jǐ"), ("只", "zhī"), ("猫", "māo"), ("？", "")] , "tr_es": "¿Cuántos gatos?", "tr_en": "How many cats?"},
-            {"r": "美美", "t": [("他", "tā"), ("有", "yǒu"), ("两", "liǎng"), ("只", "zhī"), ("猫", "māo"), ("。", "")] , "tr_es": "Tiene dos.", "tr_en": "He has two."}
-        ],
-        "audio_script": [("Xiaoxiao", "明天是星期六，你去学校吗？"), ("Yunxi", "我去。"), ("Xiaoxiao", "你去学校做什么？"), ("Yunxi", "我去学校看书。你呢？"), ("Xiaoxiao", "我不去。我去我的西班牙朋友家看猫。"), ("Yunxi", "是去西西家吗？"), ("Xiaoxiao", "是的。"), ("Yunxi", "西西家有几只猫？"), ("Xiaoxiao", "他有两只猫。")]
-    }
+    "Dialogue I": [
+        {"r": "美美", "t": [("大卫", "Dàwèi"), ("，", ""), ("请问", "qǐngwèn"), ("，", ""), ("今天", "jīntiān"), ("几号", "jǐ hào"), ("？", "")] , "tr_es": "David, disculpe, ¿qué fecha es hoy?", "tr_en": "David, what is the date today?"},
+        {"r": "大卫", "t": [("今天", "jīntiān"), ("9月1号", "jiǔ yuè yī hào"), ("。", "")] , "tr_es": "Hoy es 1 de septiembre.", "tr_en": "Today is September 1st."},
+        {"r": "美美", "t": [("今天", "jīntiān"), ("星期几", "xīngqī jǐ"), ("？", "")] , "tr_es": "¿Qué día es hoy?", "tr_en": "What day of the week is today?"},
+        {"r": "大卫", "t": [("星期三", "xīngqī sān"), ("。", "")] , "tr_es": "Miércoles.", "tr_en": "Wednesday."},
+        {"r": "美美", "t": [("明天", "míngtiān"), ("几月几号", "jǐ yuè jǐ hào"), ("？", "")] , "tr_es": "¿Qué fecha es mañana?", "tr_en": "What is the date tomorrow?"},
+        {"r": "大卫", "t": [("明天", "míngtiān"), ("9月2号", "jiǔ yuè èr hào"), ("。", "")] , "tr_es": "Mañana es 2 de septiembre.", "tr_en": "Tomorrow is September 2nd."},
+        {"r": "美美", "t": [("昨天", "zuótiān"), ("呢", "ne"), ("？", "")] , "tr_es": "¿Y ayer?", "tr_en": "And yesterday?"},
+        {"r": "大卫", "t": [("昨天", "zuótiān"), ("是", "shì"), ("8月31号", "bā yuè sānshíyī hào"), ("。", "")] , "tr_es": "Ayer fue 31 de agosto.", "tr_en": "Yesterday was August 31st."}
+    ],
+    "Dialogue II": [
+        {"r": "美美", "t": [("明天", "míngtiān"), ("是", "shì"), ("星期六", "xīngqīliù"), ("，", ""), ("你", "nǐ"), ("去", "qù"), ("学校", "xuéxiào"), ("吗", "ma"), ("？", "")] , "tr_es": "¿Vas a la escuela mañana?", "tr_en": "Are you going to school tomorrow?"},
+        {"r": "大卫", "t": [("我", "wǒ"), ("去", "qù"), ("。", "")] , "tr_es": "Sí, voy.", "tr_en": "Yes, I am."},
+        {"r": "美美", "t": [("你", "nǐ"), ("去", "qù"), ("学校", "xuéxiào"), ("做", "zuò"), ("什么", "shénme"), ("？", "")] , "tr_es": "¿A qué vas?", "tr_en": "What will you do there?"},
+        {"r": "大卫", "t": [("我", "wǒ"), ("去", "qù"), ("学校", "xuéxiào"), ("看书", "kànshū"), ("。", ""), ("你", "nǐ"), ("吗", "ma"), ("？", "")] , "tr_es": "A leer. ¿Y tú?", "tr_en": "To read. And you?"},
+        {"r": "美美", "t": [("我", "wǒ"), ("不", "bù"), ("去", "qù"), ("。", ""), ("我", "wǒ"), ("去", "qù"), ("我", "wǒ"), ("的", "de"), ("西班牙朋友", "Xībānyá péngyou"), ("家", "jiā"), ("看猫", "kàn māo"), ("。", "")] , "tr_es": "Voy a casa de mi amigo.", "tr_en": "I'm going to my friend's house to see the cat."},
+        {"r": "大卫", "t": [("是", "shì"), ("去", "qù"), ("西西", "Xīxi"), ("家", "jiā"), ("吗", "ma"), ("？", "")] , "tr_es": "¿A casa de Xixi?", "tr_en": "To Xixi's house?"},
+        {"r": "美美", "t": [("是的", "shìde"), ("。", "")] , "tr_es": "Sí.", "tr_en": "Yes."},
+        {"r": "大卫", "t": [("西西", "Xīxi"), ("家", "jiā"), ("有", "yǒu"), ("几", "jǐ"), ("只", "zhī"), ("猫", "māo"), ("？", "")] , "tr_es": "¿Cuántos gatos tiene?", "tr_en": "How many cats does she have?"},
+        {"r": "美美", "t": [("他", "tā"), ("有", "yǒu"), ("两", "liǎng"), ("只", "zhī"), ("猫", "māo"), ("。", "")] , "tr_es": "Tiene dos.", "tr_en": "She has two cats."}
+    ]
 }
 
-# --- 5. 语音合成核心逻辑 (纯净剧本模式) ---
-async def make_dialogue_audio(script, filename):
+# --- 5. 纯净语音合成逻辑 (分角色，纯课文) ---
+async def make_dialogue_audio(lesson_data, filename):
+    # SSML 脚本头
     ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-CN'>"
-    for voice_short, text in script:
-        # 强制锁定角色声音，删除所有非课文描述文字
-        v_full = f"zh-CN-{voice_short}Neural"
-        ssml += f"<voice name='{v_full}'>{text}</voice><break time='500ms'/>"
+    for line in lesson_data:
+        # 美美用女声 Xiaoxiao，大卫用男声 Yunxi
+        voice = "zh-CN-XiaoxiaoNeural" if line["r"] == "美美" else "zh-CN-YunxiNeural"
+        # 提取汉字内容
+        clean_text = "".join([pair[0] for pair in line["t"]])
+        # 写入 SSML 节点
+        ssml += f"<voice name='{voice}'>{clean_text}</voice><break time='600ms'/>"
     ssml += "</speak>"
-    await edge_tts.Communicate(ssml).save(filename)
+    
+    communicate = edge_tts.Communicate(ssml)
+    await communicate.save(filename)
 
 # --- 6. 主程序 ---
 def main():
@@ -108,22 +108,24 @@ def main():
         show_pinyin = st.toggle(ui["pinyin"], value=True)
         show_trans = st.toggle(ui["trans"], value=False)
 
-    st.subheader(l_key)
     lesson_data = LESSONS[l_key]
+    st.subheader(l_key)
     
-    # 音频生成与播放
+    # 音频生成与缓存刷新逻辑
     if "current_lesson" not in st.session_state or st.session_state.current_lesson != l_key:
-        fname = f"voice_{int(time.time())}.mp3"
+        fname = f"voice_{int(time.time())}_{random.randint(1,99)}.mp3"
         with st.spinner(ui["audio_gen"]):
-            asyncio.run(make_dialogue_audio(lesson_data["audio_script"], fname))
+            asyncio.run(make_dialogue_audio(lesson_data, fname))
             st.session_state.a_file = fname
             st.session_state.current_lesson = l_key
+    
+    # 强制显示语音条在卡片上方
     st.audio(st.session_state.a_file)
     
     # 渲染卡片内容
     full_plain_text = ""
     html_card = f'<div class="reading-card">'
-    for line in lesson_data["data"]:
+    for line in lesson_data:
         html_card += f'<div class="line-container"><div class="role-label">{line["r"]}</div><div class="text-content">'
         for char, py in line["t"]:
             if show_pinyin and py:
@@ -138,7 +140,7 @@ def main():
     html_card += '</div>'
     st.markdown(html_card, unsafe_allow_html=True)
 
-    # 打字练习指令说明
+    # 打字练习区
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown(f'<p class="instr">✍️ {ui["typing_instr"]}</p>', unsafe_allow_html=True)
     user_input = st.text_input(ui["typing_title"], placeholder="Type here...", label_visibility="collapsed")
