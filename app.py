@@ -12,15 +12,13 @@ st.set_page_config(page_title="阅读智能体 Pro", page_icon="📖", layout="c
 UI_TEXT = {
     "Español": {
         "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Sincronizando voces...",
-        "typing_title": "✍️ Práctica de Escritura",
         "typing_instr": "Escribe el texto de arriba aquí para mejorar tu habilidad de escritura.",
-        "perfect": "🎉 ¡Perfecto!"
+        "perfect": "🎉 ¡Excelente trabajo!"
     },
     "English": {
         "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Syncing voices...",
-        "typing_title": "✍️ Typing Practice",
         "typing_instr": "Type the text above here to practice your typing skills.",
-        "perfect": "🎉 Perfect!"
+        "perfect": "🎉 Perfect work!"
     }
 }
 
@@ -37,18 +35,15 @@ st.markdown("""
     }
     .line-container { display: flex; margin-bottom: 5px; align-items: flex-start; }
     
-    /* 角色名：胭脂红 */
     .role-label {
         min-width: 65px; font-weight: 900; color: #BE185D; 
         font-size: 1.05em; padding-top: 10px; font-family: 'Noto Serif SC', serif;
     }
     .text-content { flex: 1; line-height: 2.8; }
-    ruby { ruby-position: under; padding: 0 3px; font-family: "Noto Serif SC", serif; font-size: 23px; font-weight: 900; color: #333; }
+    ruby { ruby-position: under; padding: 0 3px; font-family: "Noto Serif SC", serif; font-size: 24px; font-weight: 900; color: #333; }
     
-    /* 拼音：绿色 */
-    rt { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: #27ae60 !important; font-weight: 700; padding-top: 8px !important; }
-    
-    /* 翻译：蓝色 */
+    /* 拼音绿色，翻译蓝色 */
+    rt { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: #27ae60 !important; font-weight: 700; padding-top: 10px !important; }
     .trans-text { font-size: 0.85em; color: #1d4ed8; font-family: 'Noto Sans SC', sans-serif; font-weight: 600; font-style: italic; margin-left: 10px; }
     
     .instr { font-size: 0.9em; color: #666; font-weight: 700; margin-bottom: 5px; }
@@ -56,12 +51,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. 数据库：完全补全课文内容 ---
+# --- 4. 数据库：Dialogue I & II 全内容补全 ---
 LESSONS = {
     "Dialogue I": [
         {"r": "美美", "t": [("大卫", "Dàwèi"), ("，", ""), ("请问", "qǐngwèn"), ("，", ""), ("今天", "jīntiān"), ("几号", "jǐ hào"), ("？", "")] , "tr_es": "David, disculpe, ¿qué fecha es hoy?", "tr_en": "David, what is the date today?"},
         {"r": "大卫", "t": [("今天", "jīntiān"), ("9月1号", "jiǔ yuè yī hào"), ("。", "")] , "tr_es": "Hoy es 1 de septiembre.", "tr_en": "Today is September 1st."},
-        {"r": "美美", "t": [("今天", "jīntiān"), ("星期几", "xīngqī jǐ"), ("？", "")] , "tr_es": "¿Qué día es hoy?", "tr_en": "What day of the week is today?"},
+        {"r": "美美", "t": [("今天", "jīntiān"), ("星期几", "xīngqī jǐ"), ("？", "")] , "tr_es": "¿Qué día es hoy?", "tr_en": "What day is today?"},
         {"r": "大卫", "t": [("星期三", "xīngqī sān"), ("。", "")] , "tr_es": "Miércoles.", "tr_en": "Wednesday."},
         {"r": "美美", "t": [("明天", "míngtiān"), ("几月几号", "jǐ yuè jǐ hào"), ("？", "")] , "tr_es": "¿Qué fecha es mañana?", "tr_en": "What is the date tomorrow?"},
         {"r": "大卫", "t": [("明天", "míngtiān"), ("9月2号", "jiǔ yuè èr hào"), ("。", "")] , "tr_es": "Mañana es 2 de septiembre.", "tr_en": "Tomorrow is September 2nd."},
@@ -73,29 +68,30 @@ LESSONS = {
         {"r": "大卫", "t": [("我", "wǒ"), ("去", "qù"), ("。", "")] , "tr_es": "Sí, voy.", "tr_en": "Yes, I am."},
         {"r": "美美", "t": [("你", "nǐ"), ("去", "qù"), ("学校", "xuéxiào"), ("做", "zuò"), ("什么", "shénme"), ("？", "")] , "tr_es": "¿A qué vas?", "tr_en": "What will you do there?"},
         {"r": "大卫", "t": [("我", "wǒ"), ("去", "qù"), ("学校", "xuéxiào"), ("看书", "kànshū"), ("。", ""), ("你", "nǐ"), ("吗", "ma"), ("？", "")] , "tr_es": "A leer. ¿Y tú?", "tr_en": "To read. And you?"},
-        {"r": "美美", "t": [("我", "wǒ"), ("不", "bù"), ("去", "qù"), ("。", ""), ("我", "wǒ"), ("去", "qù"), ("我", "wǒ"), ("的", "de"), ("西班牙朋友", "Xībānyá péngyou"), ("家", "jiā"), ("看猫", "kàn māo"), ("。", "")] , "tr_es": "Voy a casa de mi amigo.", "tr_en": "I'm going to my friend's house to see the cat."},
+        {"r": "美美", "t": [("我", "wǒ"), ("不", "bù"), ("去", "qù"), ("。", ""), ("我", "wǒ"), ("去", "qù"), ("我", "wǒ"), ("的", "de"), ("西班牙朋友", "Xībānyá péngyou"), ("家", "jiā"), ("看猫", "kàn māo"), ("。", "")] , "tr_es": "No, voy a casa de mi amigo.", "tr_en": "No, I'm going to my friend's house."},
         {"r": "大卫", "t": [("是", "shì"), ("去", "qù"), ("西西", "Xīxi"), ("家", "jiā"), ("吗", "ma"), ("？", "")] , "tr_es": "¿A casa de Xixi?", "tr_en": "To Xixi's house?"},
         {"r": "美美", "t": [("是的", "shìde"), ("。", "")] , "tr_es": "Sí.", "tr_en": "Yes."},
-        {"r": "大卫", "t": [("西西", "Xīxi"), ("家", "jiā"), ("有", "yǒu"), ("几", "jǐ"), ("只", "zhī"), ("猫", "māo"), ("？", "")] , "tr_es": "¿Cuántos gatos tiene?", "tr_en": "How many cats does she have?"},
-        {"r": "美美", "t": [("他", "tā"), ("有", "yǒu"), ("两", "liǎng"), ("只", "zhī"), ("猫", "māo"), ("。", "")] , "tr_es": "Tiene dos.", "tr_en": "She has two cats."}
+        {"r": "大卫", "t": [("西西", "Xīxi"), ("家", "jiā"), ("有", "yǒu"), ("几", "jǐ"), ("只", "zhī"), ("猫", "māo"), ("？", "")] , "tr_es": "¿Cuántos gatos?", "tr_en": "How many cats?"},
+        {"r": "美美", "t": [("他", "tā"), ("有", "yǒu"), ("两", "liǎng"), ("只", "zhī"), ("猫", "māo"), ("。", "")] , "tr_es": "Tiene dos.", "tr_en": "He has two."}
     ]
 }
 
-# --- 5. 纯净语音合成逻辑 (分角色，纯课文) ---
+# --- 5. 纯净语音合成逻辑 (解决念代码问题，锁定男女声) ---
 async def make_dialogue_audio(lesson_data, filename):
-    # SSML 脚本头
-    ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-CN'>"
+    # 构建极其严谨的 SSML，杜绝引擎解析错误
+    ssml = "<?xml version='1.0' encoding='UTF-8'?>"
+    ssml += "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-CN'>"
     for line in lesson_data:
-        # 美美用女声 Xiaoxiao，大卫用男声 Yunxi
+        # 晓晓 (Xiaoxiao) / 云希 (Yunxi) 强制锁定
         voice = "zh-CN-XiaoxiaoNeural" if line["r"] == "美美" else "zh-CN-YunxiNeural"
-        # 提取汉字内容
-        clean_text = "".join([pair[0] for pair in line["t"]])
-        # 写入 SSML 节点
-        ssml += f"<voice name='{voice}'>{clean_text}</voice><break time='600ms'/>"
+        text = "".join([pair[0] for pair in line["t"]])
+        # 汉字转换，防止数字被读成英语
+        text = text.replace("9月1号", "九月一号").replace("9月2号", "九月二号").replace("8月31号", "八月三十一号")
+        ssml += f"<voice name='{voice}'>{text}</voice><break time='600ms'/>"
     ssml += "</speak>"
     
-    communicate = edge_tts.Communicate(ssml)
-    await communicate.save(filename)
+    # 强制将 SSML 作为单一字符串发送
+    await edge_tts.Communicate(ssml).save(filename)
 
 # --- 6. 主程序 ---
 def main():
@@ -108,21 +104,19 @@ def main():
         show_pinyin = st.toggle(ui["pinyin"], value=True)
         show_trans = st.toggle(ui["trans"], value=False)
 
-    lesson_data = LESSONS[l_key]
     st.subheader(l_key)
+    lesson_data = LESSONS[l_key]
     
-    # 音频生成与缓存刷新逻辑
-    if "current_lesson" not in st.session_state or st.session_state.current_lesson != l_key:
+    # 音频生成 (加入随机数防止缓存)
+    if "curr_l" not in st.session_state or st.session_state.curr_l != l_key:
         fname = f"voice_{int(time.time())}_{random.randint(1,99)}.mp3"
         with st.spinner(ui["audio_gen"]):
             asyncio.run(make_dialogue_audio(lesson_data, fname))
             st.session_state.a_file = fname
-            st.session_state.current_lesson = l_key
-    
-    # 强制显示语音条在卡片上方
+            st.session_state.curr_l = l_key
     st.audio(st.session_state.a_file)
     
-    # 渲染卡片内容
+    # 渲染卡片
     full_plain_text = ""
     html_card = f'<div class="reading-card">'
     for line in lesson_data:
@@ -140,10 +134,10 @@ def main():
     html_card += '</div>'
     st.markdown(html_card, unsafe_allow_html=True)
 
-    # 打字练习区
+    # 打字练习
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown(f'<p class="instr">✍️ {ui["typing_instr"]}</p>', unsafe_allow_html=True)
-    user_input = st.text_input(ui["typing_title"], placeholder="Type here...", label_visibility="collapsed")
+    user_input = st.text_input("Typing Practice Input", placeholder="Type here...", label_visibility="collapsed")
     
     if user_input:
         res_html = '<div style="background:white; padding:8px 15px; border-radius:12px; border:2px solid #eee; margin-top:5px;">'
