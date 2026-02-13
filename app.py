@@ -190,4 +190,42 @@ def main():
     html_card = f'<div class="reading-scroll-area {p_class}">'
     for line in lesson_data:
         html_card += '<div class="line-container">'
-        html_card += f'<div class="left-zone"><div class="role-
+        html_card += f'<div class="left-zone"><div class="role-label">{line["r"]}</div><div class="text-content">'
+        for char, py in line["t"]:
+            if show_pinyin and py:
+                html_card += f'<ruby>{char}<rt>{py}</rt></ruby>'
+            else:
+                html_card += f'<ruby style="line-height:1.4;">{char}</ruby>'
+        html_card += '</div></div>'
+        if show_trans:
+            t_content = line["tr_en"] if ui_lang == "English" else line["tr_es"]
+            html_card += f'<div class="right-zone"><span class="trans-text">{t_content}</span></div>'
+        html_card += '</div>'
+    html_card += '</div>'
+    st.markdown(html_card, unsafe_allow_html=True)
+
+    # 底部练习区
+    st.markdown(f'<div class="typing-section"><p class="instr-text">✍️ {ui["typing_instr"]}</p></div>', unsafe_allow_html=True)
+    
+    user_input = st.text_input("input_box", placeholder="Type here...", label_visibility="collapsed")
+    
+    # 构建纯文本用于比对
+    full_plain_text = ""
+    for line in lesson_data:
+        for char, _ in line["t"]:
+            full_plain_text += char
+
+    if user_input:
+        res = '<div style="background:white; padding:8px 15px; border-radius:10px; border:2px solid #ddd; margin-top:5px;">'
+        max_l = max(len(full_plain_text), len(user_input))
+        for i in range(max_l):
+            if i < len(user_input) and i < len(full_plain_text):
+                color = "#2ecc71" if user_input[i] == full_plain_text[i] else "#e74c3c"
+                res += f'<span style="color:{color}; font-size:18px; font-weight:bold;">{user_input[i]}</span>'
+            elif i < len(user_input):
+                res += f'<span style="color:#e74c3c; font-size:18px;">{user_input[i]}</span>'
+        st.markdown(res + '</div>', unsafe_allow_html=True)
+        if user_input.strip() == full_plain_text.strip(): st.balloons()
+
+if __name__ == "__main__":
+    main()
