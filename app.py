@@ -13,35 +13,45 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. 界面双语语言包 ---
+# --- 2. 界面双语语言包 (双语指令已配置) ---
 UI_TEXT = {
     "Español": {
-        "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Generando audio...",
-        "typing_title": "✍️ Práctica", "typing_instr": "Escribe el texto de arriba aquí para practicar.", 
-        "perfect": "🎉 ¡Excelente!", "refresh": "🔄 Regenerar Audio"
+        "pinyin": "Pinyin", 
+        "trans": "Traducción", 
+        "audio_gen": "Generando audio...",
+        "typing_title": "✍️ Práctica", 
+        # 👇 西班牙语指令
+        "typing_instr": "Instrucción: Sigue el texto de arriba para practicar tu reconocimiento de caracteres y escritura.", 
+        "perfect": "🎉 ¡Excelente!", 
+        "refresh": "Regenerar Audio"
     },
     "English": {
-        "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Generating audio...",
-        "typing_title": "✍️ Practice", "typing_instr": "Type the text above here to practice.", 
-        "perfect": "🎉 Perfect!", "refresh": "🔄 Regenerate Audio"
+        "pinyin": "Pinyin", 
+        "trans": "Translation", 
+        "audio_gen": "Generating audio...",
+        "typing_title": "✍️ Practice", 
+        # 👇 英语指令 (当用户选 English 时自动切换)
+        "typing_instr": "Instruction: Follow the text above to practice your character recognition and typing skills.", 
+        "perfect": "🎉 Perfect!", 
+        "refresh": "Regenerate Audio"
     }
 }
 
-# --- 3. 视觉设计 (CSS) - V24 干净修复版 ---
+# --- 3. 视觉设计 (CSS) - 极致干净版 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
     
     .stApp { background-color: #FFFBF0; }
     
-    /* ⬆️ 修复顶部空间：给更多留白，防止切头 */
+    /* 顶部布局修复 */
     .block-container { 
-        padding-top: 3rem !important; 
+        padding-top: 2.5rem !important; 
         padding-bottom: 2rem !important; 
         max-width: 1000px !important; 
     }
 
-    /* 隐藏 Streamlit 默认的汉堡菜单和页脚，看起来更像原生 App */
+    /* 隐藏 Streamlit 默认元素 */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -54,7 +64,7 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(0,0,0,0.03);
     }
     
-    /* 媒体查询：适配屏幕高度 */
+    /* 屏幕适配 */
     @media (min-height: 901px) { .reading-scroll-area { height: 60vh; } }
     @media (max-height: 900px) { .reading-scroll-area { height: 50vh; } }
     @media (max-height: 700px) { .reading-scroll-area { height: 42vh; } }
@@ -70,7 +80,7 @@ st.markdown("""
     .trans-text { font-size: 0.85rem; color: #1D4ED8; font-family: 'Noto Sans SC', sans-serif; font-weight: 700; line-height: 1.3; }
     
     .typing-section { background: #fff; padding: 15px 25px; border-radius: 1rem; border: 2px solid #eee; box-shadow: 0 -4px 15px rgba(0,0,0,0.04); }
-    .instr-text { color: #666; font-size: 0.9em; font-weight: 700; margin-bottom: 5px; }
+    .instr-text { color: #555; font-size: 0.95em; font-weight: 700; margin-bottom: 8px; }
     
     .hide-pinyin rt { display: none !important; }
     .hide-pinyin ruby { line-height: 1.6 !important; }
@@ -82,7 +92,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. 数据库 (这里以后可以改成上传功能) ---
+# --- 4. 数据库 ---
 LESSONS = {
     "Dialogue I": [
         {"r": "美美", "t": [("大卫", "Dàwèi"), ("，", ""), ("请问", "qǐngwèn"), ("，", ""), ("今天", "jīntiān"), ("几号", "jǐ hào"), ("？", "")] , "tr_es": "David, disculpe, ¿qué fecha es hoy?", "tr_en": "David, what's the date today?"},
@@ -107,7 +117,7 @@ LESSONS = {
     ]
 }
 
-# --- 5. 语音核心 (V23 Pro) ---
+# --- 5. 语音核心逻辑 ---
 async def make_audio_v23(lesson_data, filename):
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(lesson_data):
@@ -134,25 +144,23 @@ def main():
     with st.sidebar:
         st.title("Settings")
         ui_lang = st.selectbox("Language", ["Español", "English"])
+        # 获取对应语言包
         ui = UI_TEXT[ui_lang]
         
-        # 移除了调试用的红色标签，界面更干净
         st.divider()
         lesson_key = st.selectbox("Lección", list(LESSONS.keys()))
         show_pinyin = st.toggle(ui["pinyin"], value=True)
         show_trans = st.toggle(ui["trans"], value=False)
         
         st.divider()
-        if st.button(ui["refresh"]): # 移除了 type="primary" 让按钮没那么抢眼
+        if st.button(ui["refresh"]):
             st.session_state.lesson_v23 = "" 
             st.rerun()
 
-    # 顶部标题 (现在应该有更多空间了)
     st.markdown(f'<div class="main-header">{lesson_key}</div>', unsafe_allow_html=True)
     
     lesson_data = LESSONS[lesson_key]
     
-    # 语音处理
     if st.session_state.lesson_v23 != lesson_key:
         fname = f"audio_v24_{int(time.time())}.mp3"
         with st.spinner(ui["audio_gen"]):
@@ -162,7 +170,6 @@ def main():
     
     st.audio(st.session_state.audio_v23)
     
-    # 阅读区
     p_class = "" if show_pinyin else "hide-pinyin"
     html_card = f'<div class="reading-scroll-area {p_class}">'
     for line in lesson_data:
@@ -181,8 +188,8 @@ def main():
     html_card += '</div>'
     st.markdown(html_card, unsafe_allow_html=True)
 
-    # 练习区
-    st.markdown(f'<div class="typing-section"><p class="instr-text">{ui["typing_instr"]}</p></div>', unsafe_allow_html=True)
+    # 练习区 (这里动态调用 ui["typing_instr"])
+    st.markdown(f'<div class="typing-section"><p class="instr-text">✍️ {ui["typing_instr"]}</p></div>', unsafe_allow_html=True)
     user_input = st.text_input("inp", placeholder="...", label_visibility="collapsed")
     
     full_text = "".join(["".join([p[0] for p in l["t"]]) for l in lesson_data])
