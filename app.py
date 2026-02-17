@@ -1,4 +1,3 @@
-
 import streamlit as st
 import asyncio
 import edge_tts
@@ -17,11 +16,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 🔴 核心改动：从 Render 的环境变量中读取 Key
-# 这样你就不需要在这里手动粘贴了，代码会自动找到你设置的那个 GOOGLE_API_KEY
+# 直接从 Render 环境变量读取
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY") 
 
-# 界面语言包
 UI_TEXT = {
     "Español": { 
         "pinyin": "Pinyin", "trans": "Traducción", "typing_instr": "Instrucción: Sigue el texto de arriba para practicar.", 
@@ -41,44 +38,28 @@ UI_TEXT = {
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
-    
     html, body, [data-testid="stAppViewContainer"] { background-color: #FFFBF0; overflow: hidden !important; height: 100vh; }
     .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; max-width: 1200px !important; height: 100vh; display: flex; flex-direction: column; }
-    
     header[data-testid="stHeader"] { background-color: transparent !important; visibility: visible !important; height: 0px !important; z-index: 100; }
     [data-testid="collapsedControl"] { 
-        visibility: visible !important; display: flex !important; 
-        background-color: #BE185D !important; color: white !important; 
-        border-radius: 50% !important; padding: 0.5rem !important; 
-        top: 60px !important; left: 20px !important; 
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.2) !important; 
-        z-index: 999999 !important; transition: transform 0.2s; 
+        visibility: visible !important; display: flex !important; background-color: #BE185D !important; color: white !important; 
+        border-radius: 50% !important; padding: 0.5rem !important; top: 60px !important; left: 20px !important; 
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.2) !important; z-index: 999999 !important; 
     }
-    [data-testid="collapsedControl"]:hover { transform: scale(1.1); }
-    
     #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], footer { visibility: hidden; }
-
     .main-title { text-align: center; font-family: 'Noto Serif SC', serif; font-weight: 900; color: #334155; font-size: 1.6rem; margin-bottom: 5px; margin-top: -10px; }
-    
     .reading-scroll-area { 
-        background-color: white; padding: 20px 30px; border-radius: 1.5rem; 
-        border: 2px solid #eee; overflow-y: auto !important; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03); 
-        height: calc(100vh - 380px) !important; 
-        margin-bottom: 15px; scroll-behavior: smooth; 
+        background-color: white; padding: 20px 30px; border-radius: 1.5rem; border: 2px solid #eee; 
+        overflow-y: auto !important; box-shadow: 0 4px 15px rgba(0,0,0,0.03); 
+        height: calc(100vh - 380px) !important; margin-bottom: 15px; scroll-behavior: smooth; 
     }
-    
     .line-container { display: flex; margin-bottom: 8px; padding: 10px; border-radius: 12px; transition: all 0.2s ease; border-bottom: 1px solid #fcfcfc;}
-
-    .active-meimei { background-color: #dcfce7 !important; border-left: 5px solid #22c55e !important; transform: scale(1.005); }
-    .active-dawei { background-color: #dbeafe !important; border-left: 5px solid #3b82f6 !important; transform: scale(1.005); }
-    
+    .active-meimei { background-color: #dcfce7 !important; border-left: 5px solid #22c55e !important; }
+    .active-dawei { background-color: #dbeafe !important; border-left: 5px solid #3b82f6 !important; }
     .role-label { min-width: 50px; font-weight: 900; color: #BE185D; font-size: 1rem; padding-top: 6px; }
     ruby { ruby-position: under; padding: 0 2px; font-size: 24px; font-weight: 900; color: #333; }
     rt { font-size: 12px; color: #666; font-weight: 700; }
-    
     .typing-section { background: #fff; padding: 12px 20px; border-radius: 1rem; border: 2px solid #3B82F6; margin-bottom: 10px; }
-    .instr-text { color: #1E40AF; font-size: 0.9em; font-weight: 800; margin-bottom: 5px; }
     .hide-pinyin rt { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -94,33 +75,18 @@ LESSONS = {
 # --- 4. AI 生成逻辑 ---
 def call_real_ai(topic, level, keywords):
     if not MY_API_KEY:
-        return [{"r": "Error", "t": [("未", "wèi"), ("配置", "pèizhì"), ("Key", "")], "tr_es": "Falta la clave API en Render Environment Variables", "tr_en": "API Key missing in Render Environment Variables"}]
-    
+        return [{"r": "Error", "t": [("请", "qǐng"), ("配置", "pèizhì"), ("API", ""), ("Key", "")], "tr_es": "Falta API Key", "tr_en": "API Key missing"}]
     try:
         genai.configure(api_key=MY_API_KEY)
         model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        prompt = f"""
-        Act as a Chinese teacher. Create a short dialogue (4-6 lines) between '美美' (Meimei, female) and '大卫' (David, male).
-        Topic: {topic}
-        HSK Level: {level}
-        Must include keywords: {keywords}
-        
-        Output STRICT JSON format:
-        [
-          {{"r": "美美", "t": [["汉", "hàn"], ["字", "zì"]], "tr_es": "Spanish trans", "tr_en": "English trans"}},
-          ...
-        ]
-        Make sure 't' is a list of [character, pinyin] pairs.
-        """
+        prompt = f"Act as a Chinese teacher. Dialogue (4-6 lines) between '美美' and '大卫'. Topic: {topic}. Level: {level}. Keywords: {keywords}. JSON format: [{{'r': '美美', 't': [['汉', 'hàn']], 'tr_es': '...', 'tr_en': '...'}}]"
         response = model.generate_content(prompt)
-        clean_json = response.text.strip().replace("```json", "").replace("```", "")
-        return json.loads(clean_json)
+        return json.loads(response.text.strip().replace("```json", "").replace("```", ""))
     except Exception as e:
-        return [{"r": "Error", "t": [("生成", "shēngchéng"), ("失败", "shībài")], "tr_es": str(e), "tr_en": str(e)}]
+        return [{"r": "Error", "t": [("生成", "shēngchéng"), ("失败", "shībài")], "tr_es": str(e), "tr_en": "AI Error"}]
 
-# --- 5. 语音与播放器 ---
-async def make_audio_v31(lesson_data, filename):
+# --- 5. 语音与播放器 (加固处理) ---
+async def make_audio_safe(lesson_data, filename):
     timestamps = []
     curr = 0.0
     with open(filename, 'wb') as final_file:
@@ -130,11 +96,15 @@ async def make_audio_v31(lesson_data, filename):
             dur = len(raw) * 0.28
             if dur < 1.2: dur = 1.2
             timestamps.append({"start": curr, "end": curr + dur, "role": line["r"]})
-            communicate = edge_tts.Communicate(raw, voice)
-            temp_f = f"temp_{i}.mp3"
-            await communicate.save(temp_f)
-            with open(temp_f, 'rb') as f: final_file.write(f.read())
-            os.remove(temp_f)
+            try:
+                communicate = edge_tts.Communicate(raw, voice)
+                temp_f = f"t_{int(time.time())}_{i}.mp3"
+                await communicate.save(temp_f)
+                await asyncio.sleep(0.1) # 💡 等待文件写入完成
+                if os.path.exists(temp_f):
+                    with open(temp_f, 'rb') as f: final_file.write(f.read())
+                    os.remove(temp_f)
+            except: pass
             curr += dur
     return timestamps
 
@@ -143,10 +113,10 @@ def get_player_html(file_path, ts):
     return f"""
     <div style="display:flex; flex-direction:column; align-items:center; background:white; padding:8px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:10px;">
         <audio id="p" controls src="data:audio/mp3;base64,{b64}" style="width:100%; max-width:450px; height:32px;"></audio>
-        <div style="margin-top:5px; display:flex; gap:10px;">
-            <button onclick="p.playbackRate=0.8" style="cursor:pointer; padding:2px 8px; border:1px solid #ccc; border-radius:4px;">🐢 0.8x</button>
-            <button onclick="p.playbackRate=1.0" style="cursor:pointer; padding:2px 8px; border:1px solid #ccc; border-radius:4px;">▶ 1.0x</button>
-            <button onclick="p.playbackRate=1.2" style="cursor:pointer; padding:2px 8px; border:1px solid #ccc; border-radius:4px;">🐇 1.2x</button>
+        <div style="margin-top:5px;">
+            <button onclick="p.playbackRate=0.8" style="cursor:pointer; padding:2px 8px;">🐢 0.8x</button>
+            <button onclick="p.playbackRate=1.0" style="cursor:pointer; padding:2px 8px;">▶ 1.0x</button>
+            <button onclick="p.playbackRate=1.2" style="cursor:pointer; padding:2px 8px;">🐇 1.2x</button>
         </div>
     </div>
     <script>
@@ -160,9 +130,7 @@ def get_player_html(file_path, ts):
                     if (cur >= t.start && cur < t.end) {{
                         el.classList.add(t.role === "美美" ? "active-meimei" : "active-dawei");
                         el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
-                    }} else {{
-                        el.classList.remove("active-meimei", "active-dawei");
-                    }}
+                    }} else {{ el.classList.remove("active-meimei", "active-dawei"); }}
                 }}
             }});
         }};
@@ -179,15 +147,11 @@ def main():
         mode = st.radio("Mode", ["Preset Lessons", "AI Generator 🤖"])
         ui_lang = st.selectbox("UI Language", ["Español", "English"])
         ui = UI_TEXT[ui_lang]
-
         if mode == "AI Generator 🤖":
             topic = st.text_input(ui["topic"], "Shopping")
             col1, col2 = st.columns(2)
-            with col1:
-                level = st.selectbox(ui["level"], ["HSK 1", "HSK 2", "HSK 3"])
-            with col2:
-                keywords = st.text_input(ui["keywords"], "苹果, 多少钱")
-            
+            with col1: level = st.selectbox(ui["level"], ["HSK 1", "HSK 2", "HSK 3"])
+            with col2: keywords = st.text_input(ui["keywords"], "苹果, 多少钱")
             if st.button(ui["gen_btn"]):
                 with st.spinner(ui["ai_thinking"]):
                     st.session_state.data_v31 = call_real_ai(topic, level, keywords)
@@ -199,7 +163,6 @@ def main():
                 st.session_state.data_v31 = LESSONS[lesson_key]
                 st.session_state.audio_v31 = ""
                 st.session_state.last_key = lesson_key
-        
         st.divider()
         show_pinyin = st.toggle(ui["pinyin"], value=True)
         show_trans = st.toggle(ui["trans"], value=False)
@@ -209,9 +172,8 @@ def main():
 
     st.markdown(f'<div class="main-title">Reading Assistant</div>', unsafe_allow_html=True)
     if not st.session_state.audio_v31:
-        fname = f"v31_{int(time.time())}.mp3"
-        st.session_state.ts_v31 = asyncio.run(make_audio_v31(st.session_state.data_v31, fname))
-        st.session_state.audio_path = fname
+        fname = f"v33_{int(time.time())}.mp3"
+        st.session_state.ts_v31 = asyncio.run(make_audio_safe(st.session_state.data_v31, fname))
         st.session_state.audio_v31 = fname
     
     if os.path.exists(st.session_state.audio_v31):
