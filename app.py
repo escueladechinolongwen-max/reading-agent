@@ -1,3 +1,4 @@
+
 import streamlit as st
 import asyncio
 import edge_tts
@@ -16,8 +17,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 🔑 已经为你填好 Key 了，直接复制即可使用！
-MY_API_KEY = "AIzaSyDxxxxxxxxxxxx_xPO0"  
+# 🔴 核心改动：从 Render 的环境变量中读取 Key
+# 这样你就不需要在这里手动粘贴了，代码会自动找到你设置的那个 GOOGLE_API_KEY
+MY_API_KEY = os.environ.get("GOOGLE_API_KEY") 
 
 # 界面语言包
 UI_TEXT = {
@@ -81,7 +83,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. 数据 ---
+# --- 3. 初始数据 ---
 LESSONS = {
     "Dialogue I": [
         {"r": "美美", "t": [("大卫", "Dàwèi"), ("，", ""), ("请问", "qǐngwèn"), ("今天", "jīntiān"), ("几号", "jǐ hào"), ("？", "")] , "tr_es": "¿Qué fecha es hoy?", "tr_en": "What date is today?"},
@@ -91,6 +93,9 @@ LESSONS = {
 
 # --- 4. AI 生成逻辑 ---
 def call_real_ai(topic, level, keywords):
+    if not MY_API_KEY:
+        return [{"r": "Error", "t": [("未", "wèi"), ("配置", "pèizhì"), ("Key", "")], "tr_es": "Falta la clave API en Render Environment Variables", "tr_en": "API Key missing in Render Environment Variables"}]
+    
     try:
         genai.configure(api_key=MY_API_KEY)
         model = genai.GenerativeModel('gemini-1.5-flash')
@@ -106,24 +111,24 @@ def call_real_ai(topic, level, keywords):
           {{"r": "美美", "t": [["汉", "hàn"], ["字", "zì"]], "tr_es": "Spanish trans", "tr_en": "English trans"}},
           ...
         ]
-        Make sure 't' is a list of [character, pinyin] pairs. Use empty string for punctuation pinyin.
+        Make sure 't' is a list of [character, pinyin] pairs.
         """
         response = model.generate_content(prompt)
         clean_json = response.text.strip().replace("```json", "").replace("```", "")
         return json.loads(clean_json)
     except Exception as e:
-        return [{"r": "Error", "t": [("出错", "chūcuò"), ("了", "le")], "tr_es": str(e), "tr_en": str(e)}]
+        return [{"r": "Error", "t": [("生成", "shēngchéng"), ("失败", "shībài")], "tr_es": str(e), "tr_en": str(e)}]
 
-# --- 5. 语音 ---
+# --- 5. 语音与播放器 ---
 async def make_audio_v31(lesson_data, filename):
     timestamps = []
     curr = 0.0
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(lesson_data):
-            voice = "zh-CN-XiaoxiaoNeural" if line["r"] in ["美美", "System", "Error"] else "zh-CN-YunxiNeural"
+            voice = "zh-CN-XiaoxiaoNeural" if line["r"] in ["美美", "Error"] else "zh-CN-YunxiNeural"
             raw = "".join([p[0] for p in line["t"]])
             dur = len(raw) * 0.28
-            if dur < 1.0: dur = 1.0
+            if dur < 1.2: dur = 1.2
             timestamps.append({"start": curr, "end": curr + dur, "role": line["r"]})
             communicate = edge_tts.Communicate(raw, voice)
             temp_f = f"temp_{i}.mp3"
@@ -206,6 +211,7 @@ def main():
     if not st.session_state.audio_v31:
         fname = f"v31_{int(time.time())}.mp3"
         st.session_state.ts_v31 = asyncio.run(make_audio_v31(st.session_state.data_v31, fname))
+        st.session_state.audio_path = fname
         st.session_state.audio_v31 = fname
     
     if os.path.exists(st.session_state.audio_v31):
