@@ -40,22 +40,24 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 只有在报错时才会出现的数据 (不再是“你好”) ---
-ERROR_DATA = [
-    {"r": "System", "t": [("AI", ""), ("生", "shēng"), ("成", "chéng"), ("失", "shī"), ("败", "bài")], "tr_es": "Fallo de AI", "tr_en": "AI Failed"},
-    {"r": "System", "t": [("请", "qǐng"), ("看", "kàn"), ("报", "bào"), ("错", "cuò")], "tr_es": "Ver error arriba", "tr_en": "Check error above"}
-]
+# --- 2. 诊断模式：如果出错，直接把错误显示在卡片里 ---
+def get_error_card(error_msg):
+    return [
+        {"r": "System", "t": [("错", "cuò"), ("误", "wù")], "tr_es": "Error Detectado", "tr_en": "Error Detected"},
+        {"r": "System", "t": [], "tr_es": str(error_msg), "tr_en": str(error_msg)}
+    ]
 
 # --- 3. 核心修复：显式报错版 AI 逻辑 ---
 def call_real_ai(topic, level, keywords):
+    # 1. 检查 Key 是否存在
     if not MY_API_KEY:
         st.error("❌ 致命错误: 没有找到 GOOGLE_API_KEY。请检查 Render Environment Variables。")
-        return ERROR_DATA
+        return get_error_card("Missing API Key")
     
     try:
         genai.configure(api_key=MY_API_KEY)
         
-        # 换用最基础的 Prompt 方式，不依赖高级 JSON Mode，兼容性最好
+        # 2. 尝试使用 gemini-1.5-flash
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f"""
@@ -70,27 +72,26 @@ def call_real_ai(topic, level, keywords):
         ]
         """
         
-        # 发送请求
         response = model.generate_content(prompt)
-        
-        # 调试：如果有问题，把 AI 返回的原始文本打印出来
         raw_text = response.text.strip()
         
-        # 尝试清洗 JSON
+        # 清洗
         if "```" in raw_text:
             raw_text = raw_text.replace("```json", "").replace("```", "")
         
-        # 尝试解析
         return json.loads(raw_text)
 
     except Exception as e:
-        # 🚨 关键：直接在网页上打印出具体的 Python 错误代码！
-        st.error(f"🔴 AI Error: {str(e)}")
+        # 🚨 关键：把错误打印出来！
+        error_str = str(e)
+        st.error(f"🔴 AI Error: {error_str}")
         
-        # 如果是 Key 错误，这里会显示 403
-        # 如果是 模型不存在，这里会显示 404
-        # 如果是 格式不对，这里会显示 JSONDecodeError
-        return ERROR_DATA
+        if "404" in error_str:
+            return get_error_card("Model not found (404). Render region issue?")
+        if "403" in error_str:
+            return get_error_card("API Key invalid (403). Check Key.")
+        
+        return get_error_card(error_str[:50]) # 只显示前50个字符以免刷屏
 
 # --- 4. 语音合成 ---
 async def make_audio_safe(lesson_data, filename):
@@ -99,8 +100,17 @@ async def make_audio_safe(lesson_data, filename):
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(lesson_data):
             voice = "zh-CN-XiaoxiaoNeural" if line["r"] in ["美美", "System"] else "zh-CN-YunxiNeural"
-            raw = "".join([p[0] for p in line.get("t", [])])
-            if not raw: continue
+            # 兼容错误信息显示
+            if not line.get("t"): 
+                raw = "Error" 
+            else:
+                # 兼容 t 为空的情况
+                pairs = line.get("t", [])
+                if len(pairs) > 0 and isinstance(pairs[0], str): # 兼容旧格式
+                     raw = "".join([p for p in pairs]) 
+                else:
+                     raw = "".join([p[0] for p in pairs])
+            
             dur = len(raw) * 0.28
             if dur < 1.0: dur = 1.0
             ts.append({"start": curr, "end": curr + dur, "role": line["r"]})
@@ -145,9 +155,9 @@ def get_player_html(file_path, ts):
     """
 
 def main():
+    # 默认画面改了，如果您看到“V37 Ready”，说明代码更新成功了
     if "data_v31" not in st.session_state: st.session_state.data_v31 = [
-        {"r": "System", "t": [("欢", "huān"), ("迎", "yíng")], "tr_es": "Bienvenido", "tr_en": "Welcome"},
-        {"r": "System", "t": [("请", "qǐng"), ("生", "shēng"), ("成", "chéng")], "tr_es": "Por favor genere", "tr_en": "Please generate"}
+        {"r": "System", "t": [("V37", ""), ("Ready", "")], "tr_es": "Sistema Listo", "tr_en": "System Ready"}
     ]
     if "audio_v31" not in st.session_state: st.session_state.audio_v31 = ""
     if "ts_v31" not in st.session_state: st.session_state.ts_v31 = []
@@ -164,7 +174,6 @@ def main():
             with col2: keywords = st.text_input(ui["keywords"], "苹果, 多少钱")
             if st.button(ui["gen_btn"]):
                 with st.spinner(ui["ai_thinking"]):
-                    # 🔴 关键：调用时不给任何面子，直接跑
                     st.session_state.data_v31 = call_real_ai(topic, level, keywords)
                     st.session_state.audio_v31 = ""
                     st.rerun()
@@ -185,7 +194,7 @@ def main():
 
     st.markdown('<div class="main-title">Reading Assistant</div>', unsafe_allow_html=True)
     if not st.session_state.audio_v31:
-        fname = f"v36_{int(time.time())}.mp3"
+        fname = f"v37_{int(time.time())}.mp3"
         st.session_state.ts_v31 = asyncio.run(make_audio_safe(st.session_state.data_v31, fname))
         st.session_state.audio_v31 = fname
     
@@ -197,8 +206,15 @@ def main():
     for idx, line in enumerate(st.session_state.data_v31):
         html += f'<div class="line-container" id="line-{idx}">'
         html += f'<div style="display:flex; flex:1;"><div class="role-label">{line["r"]}</div><div>'
-        for char, py in line.get("t", []):
-            html += f'<ruby>{char}<rt>{py}</rt></ruby>' if show_pinyin and py else f'<ruby>{char}</ruby>'
+        # 兼容性处理：防止 t 为空报错
+        pairs = line.get("t", [])
+        if not pairs: pairs = [] 
+        for pair in pairs:
+            if len(pair) >= 2:
+                char, py = pair[0], pair[1]
+                html += f'<ruby>{char}<rt>{py}</rt></ruby>' if show_pinyin and py else f'<ruby>{char}</ruby>'
+            else:
+                html += str(pair)
         html += '</div></div>'
         if show_trans:
             html += f'<div class="right-zone"><span style="font-size:0.8rem;">{line.get("tr_es", "") if ui_lang=="Español" else line.get("tr_en", "")}</span></div>'
