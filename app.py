@@ -6,137 +6,105 @@ import time
 import re
 import base64
 import json
+import google.generativeai as genai  # 引入 AI 库
 
-# --- 1. 全局配置与翻译字典 (放在最前面防止报错) ---
-st.set_page_config(
-    page_title="Long Wen Reading Pro", 
-    page_icon="🐼", 
-    layout="wide", 
-    initial_sidebar_state="expanded" # 默认强制展开侧边栏
-)
+# --- 1. 配置与样式 ---
+st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="wide", initial_sidebar_state="expanded")
+
+# 🔑 请在这里填入您的 API KEY (等会我教您怎么申请) 🔑
+# 如果没有 Key，请保持为空，系统会使用模拟数据
+MY_API_KEY = ""  # <--- 把 Key 粘贴在这里
 
 UI_TEXT = {
-    "Español": {
-        "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Generando audio...",
-        "typing_instr": "Instrucción: Sigue el texto de arriba para practicar tu reconocimiento de caracteres y escritura.", 
-        "refresh": "Regenerar Audio"
-    },
-    "English": {
-        "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Generating audio...",
-        "typing_instr": "Instruction: Follow the text above to practice your character recognition and typing skills.", 
-        "refresh": "Regenerate Audio"
-    }
+    "Español": { "pinyin": "Pinyin", "trans": "Traducción", "typing_instr": "Instrucción: Sigue el texto de arriba para practicar.", "refresh": "Regenerar Audio", "gen_btn": "Generar Lección ✨", "topic": "Tema", "level": "Nivel (HSK)", "keywords": "Palabras clave" },
+    "English": { "pinyin": "Pinyin", "trans": "Translation", "typing_instr": "Instruction: Follow the text above to practice.", "refresh": "Regenerate Audio", "gen_btn": "Generate Lesson ✨", "topic": "Topic", "level": "Level (HSK)", "keywords": "Keywords" }
 }
 
-# --- 2. 视觉设计 (CSS) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
+    html, body, [data-testid="stAppViewContainer"] { background-color: #FFFBF0; overflow: hidden !important; height: 100vh; }
+    .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; max-width: 1200px !important; height: 100vh; display: flex; flex-direction: column; }
     
-    html, body, [data-testid="stAppViewContainer"] {
-        background-color: #FFFBF0;
-        overflow: hidden !important; 
-        height: 100vh;
-    }
-
-    .block-container { 
-        padding-top: 1rem !important; 
-        padding-bottom: 0rem !important; 
-        max-width: 1200px !important;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-    }
-
-    /* 🔴 修复2：左上角箭头 (Red Target) 🔴 */
-    header[data-testid="stHeader"] { 
-        background-color: transparent !important; 
-        visibility: visible !important; 
-        z-index: 100 !important; 
-        height: 0px !important; /* 避免占位 */
-    }
-    
-    [data-testid="collapsedControl"] { 
-        visibility: visible !important; 
-        display: flex !important;
-        background-color: #BE185D !important; /* 鲜艳的玫红色背景 */
-        color: white !important; /* 白色箭头 */
-        border-radius: 50% !important; /* 圆形按钮 */
-        padding: 0.5rem !important;
-        top: 60px !important; /* 往下挪，防止被遮挡 */
-        left: 20px !important; 
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.2) !important;
-        z-index: 999999 !important;
-        transition: transform 0.2s;
-    }
-    [data-testid="collapsedControl"]:hover {
-        transform: scale(1.1);
-    }
-
-    /* 隐藏其他杂项 */
+    header[data-testid="stHeader"] { background-color: transparent !important; visibility: visible !important; height: 0px !important; z-index: 100; }
+    [data-testid="collapsedControl"] { visibility: visible !important; display: flex !important; background-color: #BE185D !important; color: white !important; border-radius: 50% !important; padding: 0.5rem !important; top: 60px !important; left: 20px !important; box-shadow: 2px 2px 10px rgba(0,0,0,0.2) !important; z-index: 999999 !important; transition: transform 0.2s; }
+    [data-testid="collapsedControl"]:hover { transform: scale(1.1); }
     #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], footer { visibility: hidden; }
 
     .main-title { text-align: center; font-family: 'Noto Serif SC', serif; font-weight: 900; color: #334155; font-size: 1.6rem; margin-bottom: 5px; margin-top: -10px; }
+    .reading-scroll-area { background-color: white; padding: 20px 30px; border-radius: 1.5rem; border: 2px solid #eee; overflow-y: auto !important; box-shadow: 0 4px 15px rgba(0,0,0,0.03); height: calc(100vh - 380px) !important; margin-bottom: 15px; scroll-behavior: smooth; }
+    .line-container { display: flex; margin-bottom: 8px; padding: 10px; border-radius: 12px; transition: all 0.2s ease; border-bottom: 1px solid #fcfcfc;} /* 动画加速 */
     
-    /* 阅读框 */
-    .reading-scroll-area {
-        background-color: white; padding: 20px 30px; border-radius: 1.5rem; 
-        border: 2px solid #eee; overflow-y: auto !important; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03); 
-        height: calc(100vh - 350px) !important; 
-        margin-bottom: 15px; 
-        scroll-behavior: smooth;
-    }
-
-    .line-container { display: flex; margin-bottom: 8px; padding: 10px; border-radius: 12px; transition: all 0.3s ease; border-bottom: 1px solid #fcfcfc;}
-    
-    /* 高亮样式 */
-    .active-meimei { background-color: #dcfce7 !important; border-left: 5px solid #22c55e !important; transform: scale(1.01); }
-    .active-dawei { background-color: #dbeafe !important; border-left: 5px solid #3b82f6 !important; transform: scale(1.01); }
+    /* 变色样式 */
+    .active-meimei { background-color: #dcfce7 !important; border-left: 5px solid #22c55e !important; transform: scale(1.005); }
+    .active-dawei { background-color: #dbeafe !important; border-left: 5px solid #3b82f6 !important; transform: scale(1.005); }
     
     .role-label { min-width: 50px; font-weight: 900; color: #BE185D; font-size: 1rem; padding-top: 6px; }
     ruby { ruby-position: under; padding: 0 2px; font-size: 24px; font-weight: 900; color: #333; }
     rt { font-size: 12px; color: #666; font-weight: 700; }
-    
     .typing-section { background: #fff; padding: 12px 20px; border-radius: 1rem; border: 2px solid #3B82F6; margin-bottom: 10px; }
     .instr-text { color: #1E40AF; font-size: 0.9em; font-weight: 800; margin-bottom: 5px; }
+    .hide-pinyin rt { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. 核心数据 ---
 LESSONS = {
     "Dialogue I": [
         {"r": "美美", "t": [("大卫", "Dàwèi"), ("，", ""), ("请问", "qǐngwèn"), ("今天", "jīntiān"), ("几号", "jǐ hào"), ("？", "")] , "tr_es": "¿Qué fecha es hoy?", "tr_en": "What date is today?"},
-        {"r": "大卫", "t": [("今天", "jīntiān"), ("9月1号", "jiǔ yuè yī hào"), ("。", "")] , "tr_es": "1 de septiembre.", "tr_en": "September 1st."},
-        {"r": "美美", "t": [("今天", "jīntiān"), ("星期几", "xīngqī jǐ"), ("？", "")] , "tr_es": "¿Qué día es hoy?", "tr_en": "What day of week is it?"},
-        {"r": "大卫", "t": [("星期三", "xīngqī sān"), ("。", "")] , "tr_es": "Miércoles.", "tr_en": "Wednesday."},
-        {"r": "美美", "t": [("明天", "míngtiān"), ("几月几号", "jǐ yuè jǐ hào"), ("？", "")] , "tr_es": "¿Qué fecha es mañana?", "tr_en": "What's the date tomorrow?"},
-        {"r": "大卫", "t": [("明天", "míngtiān"), ("9月2号", "jiǔ yuè èr hào"), ("。", "")] , "tr_es": "Mañana es 2 de sept.", "tr_en": "Tomorrow is Sept 2nd."}
+        {"r": "大卫", "t": [("今天", "jīntiān"), ("9月1号", "jiǔ yuè yī hào"), ("。", "")] , "tr_es": "1 de septiembre.", "tr_en": "September 1st."}
     ]
 }
 
-# --- 4. 模拟 AI 生成逻辑 (修复3: AI功能) ---
-def ai_generate_lesson(topic):
-    # 这里是模拟数据，未来填入 API Key 即可变为真 AI
-    return [
-        {"r": "美美", "t": [("我们", "wǒmen"), ("去", "qù"), ("超市", "chāoshì"), ("吧", "ba"), ("。", "")] , "tr_es": "Vamos al supermercado.", "tr_en": "Let's go to the supermarket."},
-        {"r": "大卫", "t": [("好", "hǎo"), ("的", "de"), ("，", ""), ("我", "wǒ"), ("想", "xiǎng"), ("买", "mǎi"), ("苹果", "píngguǒ"), ("。", "")] , "tr_es": "Vale, quiero comprar manzanas.", "tr_en": "Okay, I want to buy apples."}
-    ]
+# --- 2. 真实的 AI 调用逻辑 ---
+def call_real_ai(topic, level, keywords):
+    if not MY_API_KEY:
+        # 没填 Key 时返回假数据
+        return [
+            {"r": "System", "t": [("请", "qǐng"), ("配置", "pèizhì"), ("API", ""), ("Key", ""), ("。", "")] , "tr_es": "Por favor configure la clave API.", "tr_en": "Please configure API Key."}
+        ]
+    
+    try:
+        genai.configure(api_key=MY_API_KEY)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"""
+        Act as a Chinese teacher. Create a short dialogue (4-6 lines) between '美美' (Meimei, female) and '大卫' (David, male).
+        Topic: {topic}
+        HSK Level: {level}
+        Must include keywords: {keywords}
+        
+        Output STRICT JSON format:
+        [
+          {{"r": "美美", "t": [["汉", "hàn"], ["字", "zì"]], "tr_es": "Spanish trans", "tr_en": "English trans"}},
+          ...
+        ]
+        Make sure 't' is a list of [character, pinyin] pairs. Use empty string for punctuation pinyin.
+        """
+        response = model.generate_content(prompt)
+        # 清理返回的 JSON 字符串 (有些 AI 会带 ```json ```)
+        clean_json = response.text.strip().replace("```json", "").replace("```", "")
+        return json.loads(clean_json)
+    except Exception as e:
+        return [{"r": "Error", "t": [("出错", "chūcuò"), ("了", "le")], "tr_es": str(e), "tr_en": str(e)}]
 
-# --- 5. 语音生成与时间戳 (修复1: 调整时间公式) ---
-async def make_audio_v29(lesson_data, filename):
+# --- 3. 语音生成 (修正时间公式) ---
+async def make_audio_v30(lesson_data, filename):
     timestamps = []
     curr = 0.0
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(lesson_data):
-            voice = "zh-CN-XiaoxiaoNeural" if line["r"] == "美美" else "zh-CN-YunxiNeural"
+            voice = "zh-CN-XiaoxiaoNeural" if line["r"] in ["美美", "System", "Error"] else "zh-CN-YunxiNeural"
             raw = "".join([p[0] for p in line["t"]])
-            # 💡 核心修复：更紧凑的时间计算公式
-            # 旧公式: len * 0.45 + 0.6 (太慢)
-            # 新公式: len * 0.32 + 0.15 (紧跟语速)
-            dur = len(raw) * 0.32 + 0.15
+            
+            # ⚡ 极速公式: 字数 * 0.28s + 0s (无缓冲)
+            dur = len(raw) * 0.28
+            if dur < 1.0: dur = 1.0 # 最少给1秒，防止短句闪太快
             
             timestamps.append({"start": curr, "end": curr + dur, "role": line["r"]})
+            
+            # 错误处理
+            if not raw.strip(): raw = "空" 
+            
             communicate = edge_tts.Communicate(raw, voice)
             temp_f = f"temp_{i}.mp3"
             await communicate.save(temp_f)
@@ -145,7 +113,6 @@ async def make_audio_v29(lesson_data, filename):
             curr += dur
     return timestamps
 
-# 播放器组件
 def get_player_html(file_path, ts):
     with open(file_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
     return f"""
@@ -165,8 +132,8 @@ def get_player_html(file_path, ts):
             ts.forEach((t, i) => {{
                 const el = window.parent.document.getElementById('line-'+i);
                 if (el) {{
-                    // 给每个句子增加 0.1s 的容错，防止提前消失
-                    if (cur >= t.start && cur < (t.end + 0.1)) {{
+                    // 更精准的判定区间
+                    if (cur >= t.start && cur < t.end) {{
                         el.classList.add(t.role === "美美" ? "active-meimei" : "active-dawei");
                         el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
                     }} else {{
@@ -178,62 +145,61 @@ def get_player_html(file_path, ts):
     </script>
     """
 
-# --- 6. 主程序 ---
+# --- 4. 主程序 ---
 def main():
-    if "audio_path" not in st.session_state: st.session_state.audio_path = ""
-    if "timestamps" not in st.session_state: st.session_state.timestamps = []
-    if "data_content" not in st.session_state: st.session_state.data_content = LESSONS["Dialogue I"] # 默认内容
+    if "data_v30" not in st.session_state: st.session_state.data_v30 = LESSONS["Dialogue I"]
+    if "audio_v30" not in st.session_state: st.session_state.audio_v30 = ""
+    if "ts_v30" not in st.session_state: st.session_state.ts_v30 = []
 
-    # 侧边栏逻辑
     with st.sidebar:
-        st.title("🐼 Settings")
+        st.title("🐼 AI Workshop")
+        mode = st.radio("Mode", ["Preset Lessons", "AI Generator 🤖"])
         
-        # AI 模式切换器
-        mode = st.radio("Mode / Modo", ["Preset Lessons", "AI Generator 🤖"])
-        
+        ui_lang = st.selectbox("UI Language", ["Español", "English"])
+        ui = UI_TEXT[ui_lang]
+
         if mode == "AI Generator 🤖":
-            st.info("Try typing 'Shopping' or 'School'")
-            topic = st.text_input("Topic", "")
-            if st.button("Generate Lesson ✨"):
-                # 调用 AI 生成
-                st.session_state.data_content = ai_generate_lesson(topic)
-                st.session_state.audio_path = "" # 清空旧音频，强制重新生成
-                st.rerun()
+            # 🔴 这里是您要求的限定条件输入框
+            topic = st.text_input(ui["topic"], "Shopping / Comprar")
+            col1, col2 = st.columns(2)
+            with col1:
+                level = st.selectbox(ui["level"], ["HSK 1", "HSK 2", "HSK 3"])
+            with col2:
+                keywords = st.text_input(ui["keywords"], "多少钱, 苹果")
+            
+            if st.button(ui["gen_btn"]):
+                with st.spinner("AI is thinking..."):
+                    st.session_state.data_v30 = call_real_ai(topic, level, keywords)
+                    st.session_state.audio_v30 = "" # 强制更新
+                    st.rerun()
         else:
-            # 传统模式
             lesson_key = st.selectbox("Lección", list(LESSONS.keys()))
-            if st.session_state.get("last_lesson") != lesson_key:
-                st.session_state.data_content = LESSONS[lesson_key]
-                st.session_state.audio_path = "" # 强制更新
-                st.session_state.last_lesson = lesson_key
+            if st.session_state.get("last_key") != lesson_key:
+                st.session_state.data_v30 = LESSONS[lesson_key]
+                st.session_state.audio_v30 = ""
+                st.session_state.last_key = lesson_key
         
         st.divider()
-        ui_lang = st.selectbox("Language", ["Español", "English"])
-        ui = UI_TEXT[ui_lang]
         show_pinyin = st.toggle(ui["pinyin"], value=True)
         show_trans = st.toggle(ui["trans"], value=False)
-        
         if st.button(f"🔄 {ui['refresh']}"):
-            st.session_state.audio_path = ""
+            st.session_state.audio_v30 = ""
             st.rerun()
 
-    # 主界面渲染
-    st.markdown(f'<div class="main-title">Dialogue / AI Lesson</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="main-title">Reading Assistant</div>', unsafe_allow_html=True)
     
-    # 自动生成音频 (如果为空)
-    if not st.session_state.audio_path:
-        fname = f"audio_v29_{int(time.time())}.mp3"
-        st.session_state.timestamps = asyncio.run(make_audio_v29(st.session_state.data_content, fname))
-        st.session_state.audio_path = fname
+    # 自动生成音频
+    if not st.session_state.audio_v30:
+        fname = f"v30_{int(time.time())}.mp3"
+        st.session_state.ts_v30 = asyncio.run(make_audio_v30(st.session_state.data_v30, fname))
+        st.session_state.audio_v30 = fname
     
-    # 播放器
-    if os.path.exists(st.session_state.audio_path):
-        st.components.v1.html(get_player_html(st.session_state.audio_path, st.session_state.timestamps), height=100)
+    if os.path.exists(st.session_state.audio_v30):
+        st.components.v1.html(get_player_html(st.session_state.audio_v30, st.session_state.ts_v30), height=100)
 
-    # 阅读内容
     p_class = "" if show_pinyin else "hide-pinyin"
     html = f'<div class="reading-scroll-area {p_class}">'
-    for idx, line in enumerate(st.session_state.data_content):
+    for idx, line in enumerate(st.session_state.data_v30):
         html += f'<div class="line-container" id="line-{idx}">'
         html += f'<div style="display:flex; flex:1;"><div class="role-label">{line["r"]}</div><div>'
         for char, py in line["t"]:
@@ -244,9 +210,8 @@ def main():
         html += '</div>'
     st.markdown(html + "</div>", unsafe_allow_html=True)
 
-    # 练习区
     st.markdown(f'<div class="typing-section"><p class="instr-text">✍️ {ui["typing_instr"]}</p></div>', unsafe_allow_html=True)
-    st.text_input("input", placeholder="...", label_visibility="collapsed")
+    st.text_input("inp", placeholder="...", label_visibility="collapsed")
 
 if __name__ == "__main__":
     main()
