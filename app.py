@@ -12,132 +12,98 @@ st.set_page_config(
     page_title="Long Wen Reading Pro", 
     page_icon="🐼", 
     layout="wide",
-    initial_sidebar_state="collapsed" # 先默认折叠，让你看到箭头
+    initial_sidebar_state="expanded"
 )
 
 # --- 2. 界面双语语言包 ---
 UI_TEXT = {
     "Español": {
-        "title": "Asistente de Lectura",
-        "settings": "Configuración",
         "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Generando audio...",
         "typing_instr": "Instrucción: Sigue el texto de arriba para practicar tu reconocimiento de caracteres y escritura.", 
-        "perfect": "🎉 ¡Excelente!", "refresh": "Regenerar Audio",
-        "speed": "Velocidad"
+        "perfect": "🎉 ¡Excelente!", "refresh": "Regenerar Audio"
     },
     "English": {
-        "title": "Reading Assistant",
-        "settings": "Settings",
         "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Generating audio...",
         "typing_instr": "Instruction: Follow the text above to practice your character recognition and typing skills.", 
-        "perfect": "🎉 Perfect!", "refresh": "Regenerate Audio",
-        "speed": "Speed"
+        "perfect": "🎉 Perfect!", "refresh": "Regenerate Audio"
     }
 }
 
-# --- 3. 视觉设计 (CSS) - 修复箭头消失之谜 ---
+# --- 3. 视觉设计 (CSS) - 锁定布局版 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
     
-    .stApp { background-color: #FFFBF0; }
-    
-    /* 1. 顶部布局 */
+    /* 1. 锁定全局：禁止网页主页面滚动 */
+    html, body, [data-testid="stAppViewContainer"] {
+        background-color: #FFFBF0;
+        overflow: hidden !important; 
+        height: 100vh;
+    }
+
     .block-container { 
-        padding-top: 3rem !important; /* 给顶部留出更多空间，防止遮挡 */
-        padding-bottom: 2rem !important; 
-        max-width: 1200px !important; 
+        padding-top: 1.5rem !important; 
+        padding-bottom: 0rem !important; 
+        max-width: 1200px !important;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
     }
 
-    /* 2. 【核心修复】恢复顶部 Header 的可见性 */
-    header[data-testid="stHeader"] {
-        background-color: transparent !important;
-        visibility: visible !important; /* 必须可见！ */
-        z-index: 100 !important;
-    }
-    
-    /* 不要隐藏 Toolbar！否则箭头会一起消失 */
-    /* [data-testid="stToolbar"] { visibility: hidden; }  <-- 这句删掉了 */
-    
-    /* 3. 尝试只隐藏右上角的 "..." 菜单 (如果不生效也无所谓，关键是箭头要出来) */
-    [data-testid="stToolbarActions"] {
-        opacity: 0.2; /* 先变淡，不完全隐藏，以防万一 */
-        transition: opacity 0.3s;
-    }
-    [data-testid="stToolbarActions"]:hover {
-        opacity: 1;
+    /* 2. 移除顶部杂项 */
+    header[data-testid="stHeader"] { background-color: transparent !important; visibility: visible !important; }
+    [data-testid="collapsedControl"] { color: #BE185D !important; }
+    #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], footer { visibility: hidden; }
+
+    /* 3. 标题与播放器压缩空间 */
+    .main-title { 
+        text-align: center; font-family: 'Noto Serif SC', serif; 
+        font-weight: 900; color: #334155; font-size: 1.6rem; margin-bottom: 5px; margin-top: -30px;
     }
 
-    /* 4. 给左上角的箭头加超强特效 */
-    [data-testid="collapsedControl"] {
-        display: block !important;
-        visibility: visible !important;
-        color: #BE185D !important; /* 玫红色 */
-        background-color: rgba(255,255,255,0.8); /* 半透明背景，防止被底色吃掉 */
-        border-radius: 50%;
-        padding: 4px;
-        z-index: 999999 !important; /* 最高层级 */
-    }
-
-    /* 隐藏顶部彩条和页脚 */
-    [data-testid="stDecoration"] { display: none; }
-    footer { visibility: hidden; }
-    
-    /* 侧边栏美化 */
-    section[data-testid="stSidebar"] {
-        background-color: #f8fafc;
-        border-right: 1px solid #e2e8f0;
-    }
-
-    /* 5. 自定义播放器区域 */
     .audio-wrapper {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        background: #fff; padding: 10px; border-radius: 12px; margin-top: 0px; margin-bottom: 15px;
+        background: #fff; padding: 8px; border-radius: 12px; margin-bottom: 10px;
         border: 1px solid #e2e8f0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
-    
-    /* 倍速按钮 */
     .speed-btn {
-        background-color: white; border: 1px solid #cbd5e1; border-radius: 8px;
-        padding: 4px 12px; margin: 0 5px; cursor: pointer; 
-        font-size: 13px; font-weight: bold; color: #475569;
-        transition: all 0.2s;
+        background-color: white; border: 1px solid #cbd5e1; border-radius: 6px;
+        padding: 3px 10px; margin: 0 4px; cursor: pointer; 
+        font-size: 12px; font-weight: bold; color: #475569;
     }
-    .speed-btn:hover { background-color: #e0f2fe; color: #0284c7; border-color: #0284c7; }
-    .speed-btn:active { transform: scale(0.95); }
 
-    /* 6. 阅读框 */
+    /* 4. 【核心核心】智能阅读框高度锁定 */
+    /* 我们用 100vh 减去标题、播放器、打字框的高度，确保刚好撑满中间 */
     .reading-scroll-area {
-        background-color: white; padding: 25px 30px; border-radius: 1.5rem;
-        border: 2px solid #eee; overflow-y: auto; margin-bottom: 15px; 
-        transition: height 0.3s ease;
+        background-color: white; padding: 20px 30px; border-radius: 1.5rem;
+        border: 2px solid #eee; 
+        overflow-y: auto !important; 
         box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        flex-grow: 1; /* 自动填充剩余空间 */
+        min-height: 100px;
+        height: calc(100vh - 360px) !important; 
+        margin-bottom: 15px;
     }
-    
-    @media (min-height: 901px) { .reading-scroll-area { height: 65vh; } }
-    @media (max-height: 900px) { .reading-scroll-area { height: 55vh; } }
-    @media (max-height: 700px) { .reading-scroll-area { height: 45vh; } }
 
-    /* 文本样式 */
-    .line-container { display: flex; margin-bottom: 8px; align-items: flex-start; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid #fcfcfc; }
+    /* 文本内容样式 */
+    .line-container { display: flex; margin-bottom: 8px; align-items: flex-start; justify-content: space-between; border-bottom: 1px solid #fcfcfc; padding-bottom: 8px;}
     .left-zone { display: flex; flex: 1; align-items: flex-start; max-width: 75%; }
     .role-label { min-width: 50px; font-weight: 900; color: #BE185D; font-size: 1rem; padding-top: 6px; font-family: 'Noto Serif SC', serif; }
     ruby { ruby-position: under; padding: 0 2px; font-family: "Noto Serif SC", serif; font-size: 24px; font-weight: 900; color: #333; letter-spacing: 1px; }
     rt { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: #15803D !important; font-weight: 700; padding-top: 4px !important; }
-    .right-zone { width: 22%; background: #EFF6FF; border-left: 3px solid #3B82F6; padding: 6px 10px; border-radius: 8px; margin-top: 5px; }
-    .trans-text { font-size: 0.85rem; color: #1D4ED8; font-family: 'Noto Sans SC', sans-serif; font-weight: 700; line-height: 1.3; }
-    
-    .typing-section { background: #fff; padding: 15px 25px; border-radius: 1rem; border: 2px solid #eee; box-shadow: 0 -4px 15px rgba(0,0,0,0.04); }
-    .instr-text { color: #555; font-size: 0.95em; font-weight: 700; margin-bottom: 8px; }
+    .right-zone { width: 22%; background: #EFF6FF; border-left: 3px solid #3B82F6; padding: 6px 10px; border-radius: 8px; }
+    .trans-text { font-size: 0.8rem; color: #1D4ED8; font-family: 'Noto Sans SC', sans-serif; font-weight: 700; line-height: 1.2; }
+
+    /* 5. 【核心核心】打字练习区：强力置底，不可撼动 */
+    .typing-section { 
+        background: #fff; padding: 12px 20px; border-radius: 1rem; 
+        border: 2px solid #3B82F6; /* 强化蓝色边框，提醒作业属性 */
+        box-shadow: 0 -4px 15px rgba(59, 130, 246, 0.1);
+        margin-bottom: 10px;
+    }
+    .instr-text { color: #1E40AF; font-size: 0.9em; font-weight: 800; margin-bottom: 5px; }
     
     .hide-pinyin rt { display: none !important; }
-    .hide-pinyin ruby { line-height: 1.6 !important; }
-    
-    .main-title { 
-        text-align: center; font-family: 'Noto Serif SC', serif; 
-        font-weight: 900; color: #334155; font-size: 1.8rem; margin-bottom: 10px; margin-top: -10px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -166,7 +132,7 @@ LESSONS = {
     ]
 }
 
-# --- 5. 语音核心逻辑 ---
+# --- 5. 语音核心 ---
 async def make_audio_v23(lesson_data, filename):
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(lesson_data):
@@ -184,15 +150,14 @@ async def make_audio_v23(lesson_data, filename):
             finally:
                 if os.path.exists(temp_f): os.remove(temp_f)
 
-# 辅助：自定义HTML5播放器
 def get_audio_html(file_path):
     with open(file_path, "rb") as f:
         data = f.read()
     b64 = base64.b64encode(data).decode()
     return f"""
     <div class="audio-wrapper">
-        <audio id="player" controls src="data:audio/mp3;base64,{b64}" style="width: 100%; max-width: 500px; height: 35px;"></audio>
-        <div style="margin-top: 8px; display: flex; gap: 10px; align-items: center;">
+        <audio id="player" controls src="data:audio/mp3;base64,{b64}" style="width: 100%; max-width: 450px; height: 32px;"></audio>
+        <div style="margin-top: 5px;">
             <button class="speed-btn" onclick="document.getElementById('player').playbackRate = 0.8">🐢 0.8x</button>
             <button class="speed-btn" onclick="document.getElementById('player').playbackRate = 1.0">▶ 1.0x</button>
             <button class="speed-btn" onclick="document.getElementById('player').playbackRate = 1.25">🐇 1.25x</button>
@@ -205,57 +170,32 @@ def main():
     if "audio_v23" not in st.session_state: st.session_state.audio_v23 = ""
     if "lesson_v23" not in st.session_state: st.session_state.lesson_v23 = ""
 
-    # ==========================================
-    # 🔴 侧边栏 (Sidebar)
-    # ==========================================
     with st.sidebar:
         st.title("🐼 Settings")
-        
-        # 语言选择
-        ui_lang = st.selectbox("Language / Idioma", ["Español", "English"])
+        ui_lang = st.selectbox("Language", ["Español", "English"])
         ui = UI_TEXT[ui_lang]
         st.divider()
-        
-        # 课文选择
-        lesson_key = st.selectbox("Lección / Lesson", list(LESSONS.keys()))
-        
-        # 开关
-        c1, c2 = st.columns(2)
-        with c1:
-            show_pinyin = st.toggle(ui["pinyin"], value=True)
-        with c2:
-            show_trans = st.toggle(ui["trans"], value=False)
-            
+        lesson_key = st.selectbox("Lección", list(LESSONS.keys()))
+        show_pinyin = st.toggle(ui["pinyin"], value=True)
+        show_trans = st.toggle(ui["trans"], value=False)
         st.divider()
-        
-        # 刷新按钮
         if st.button(f"🔄 {ui['refresh']}", use_container_width=True):
             st.session_state.lesson_v23 = ""
             st.rerun()
 
-    # ==========================================
-    # 🔴 核心阅读区 (Main Area)
-    # ==========================================
-    
-    # 标题
     st.markdown(f'<div class="main-title">{lesson_key}</div>', unsafe_allow_html=True)
     
-    # 准备数据
     lesson_data = LESSONS[lesson_key]
     
-    # 生成音频
     if st.session_state.lesson_v23 != lesson_key:
-        fname = f"audio_v25_5_{int(time.time())}.mp3"
-        with st.spinner(ui["audio_gen"]):
-            asyncio.run(make_audio_v23(lesson_data, fname))
-            st.session_state.audio_v23 = fname
-            st.session_state.lesson_v23 = lesson_key
+        fname = f"audio_v26_{int(time.time())}.mp3"
+        asyncio.run(make_audio_v23(lesson_data, fname))
+        st.session_state.audio_v23 = fname
+        st.session_state.lesson_v23 = lesson_key
     
-    # 播放器
     if os.path.exists(st.session_state.audio_v23):
-        st.components.v1.html(get_audio_html(st.session_state.audio_v23), height=95)
+        st.components.v1.html(get_audio_html(st.session_state.audio_v23), height=85)
     
-    # 阅读卡片
     p_class = "" if show_pinyin else "hide-pinyin"
     html_card = f'<div class="reading-scroll-area {p_class}">'
     for line in lesson_data:
@@ -274,7 +214,7 @@ def main():
     html_card += '</div>'
     st.markdown(html_card, unsafe_allow_html=True)
 
-    # 练习区
+    # 练习区 (强制置底)
     st.markdown(f'<div class="typing-section"><p class="instr-text">✍️ {ui["typing_instr"]}</p></div>', unsafe_allow_html=True)
     user_input = st.text_input("inp", placeholder="...", label_visibility="collapsed")
     
