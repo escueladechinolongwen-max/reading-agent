@@ -5,58 +5,78 @@ import os
 import time
 import random
 import re
+import base64
 
 # --- 1. 页面基本配置 ---
 st.set_page_config(
     page_title="Long Wen Reading Assistant", 
     page_icon="🐼", 
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed" # 默认收起侧边栏
 )
 
-# --- 2. 界面双语语言包 (双语指令已配置) ---
+# --- 2. 界面双语语言包 ---
 UI_TEXT = {
     "Español": {
-        "pinyin": "Pinyin", 
-        "trans": "Traducción", 
-        "audio_gen": "Generando audio...",
+        "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Generando audio...",
         "typing_title": "✍️ Práctica", 
-        # 👇 西班牙语指令
         "typing_instr": "Instrucción: Sigue el texto de arriba para practicar tu reconocimiento de caracteres y escritura.", 
-        "perfect": "🎉 ¡Excelente!", 
-        "refresh": "Regenerar Audio"
+        "perfect": "🎉 ¡Excelente!", "refresh": "Regenerar Audio",
+        "speed": "Velocidad"
     },
     "English": {
-        "pinyin": "Pinyin", 
-        "trans": "Translation", 
-        "audio_gen": "Generating audio...",
+        "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Generating audio...",
         "typing_title": "✍️ Practice", 
-        # 👇 英语指令 (当用户选 English 时自动切换)
         "typing_instr": "Instruction: Follow the text above to practice your character recognition and typing skills.", 
-        "perfect": "🎉 Perfect!", 
-        "refresh": "Regenerate Audio"
+        "perfect": "🎉 Perfect!", "refresh": "Regenerate Audio",
+        "speed": "Speed"
     }
 }
 
-# --- 3. 视觉设计 (CSS) - 极致干净版 ---
+# --- 3. 视觉设计 (CSS) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
     
     .stApp { background-color: #FFFBF0; }
     
-    /* 顶部布局修复 */
+    /* 顶部布局调整 */
     .block-container { 
-        padding-top: 2.5rem !important; 
+        padding-top: 1.5rem !important; 
         padding-bottom: 2rem !important; 
         max-width: 1000px !important; 
     }
 
-    /* 隐藏 Streamlit 默认元素 */
+    /* 彻底隐藏侧边栏按钮，防止误触 */
+    [data-testid="collapsedControl"] { display: none; }
+    section[data-testid="stSidebar"] { display: none; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
 
-    /* 智能阅读框 */
+    /* 控制栏样式 (顶部的设置区) */
+    .control-panel {
+        background: white; padding: 15px 20px; border-radius: 1rem;
+        border: 2px solid #e2e8f0; margin-bottom: 15px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    /* 自定义播放器容器 */
+    .audio-container {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background: #f1f5f9; padding: 10px; border-radius: 12px; margin-top: 10px;
+    }
+    
+    /* 倍速按钮样式 */
+    .speed-btn {
+        background-color: white; border: 1px solid #cbd5e1; border-radius: 6px;
+        padding: 4px 12px; margin: 0 5px; cursor: pointer; font-size: 14px; font-weight: bold; color: #475569;
+        transition: all 0.2s;
+    }
+    .speed-btn:hover { background-color: #e2e8f0; color: #1e293b; }
+    .speed-btn:active { background-color: #cbd5e1; transform: scale(0.95); }
+
+    /* 阅读框 */
     .reading-scroll-area {
         background-color: white; padding: 25px 30px; border-radius: 1.5rem;
         border: 2px solid #eee; overflow-y: auto; margin-bottom: 15px; 
@@ -65,17 +85,16 @@ st.markdown("""
     }
     
     /* 屏幕适配 */
-    @media (min-height: 901px) { .reading-scroll-area { height: 60vh; } }
-    @media (max-height: 900px) { .reading-scroll-area { height: 50vh; } }
-    @media (max-height: 700px) { .reading-scroll-area { height: 42vh; } }
+    @media (min-height: 901px) { .reading-scroll-area { height: 55vh; } }
+    @media (max-height: 900px) { .reading-scroll-area { height: 45vh; } }
+    @media (max-height: 700px) { .reading-scroll-area { height: 38vh; } }
 
+    /* 文本样式 */
     .line-container { display: flex; margin-bottom: 8px; align-items: flex-start; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid #fcfcfc; }
     .left-zone { display: flex; flex: 1; align-items: flex-start; max-width: 75%; }
     .role-label { min-width: 50px; font-weight: 900; color: #BE185D; font-size: 1rem; padding-top: 6px; font-family: 'Noto Serif SC', serif; }
-    
     ruby { ruby-position: under; padding: 0 2px; font-family: "Noto Serif SC", serif; font-size: 24px; font-weight: 900; color: #333; letter-spacing: 1px; }
     rt { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: #15803D !important; font-weight: 700; padding-top: 4px !important; }
-    
     .right-zone { width: 22%; background: #EFF6FF; border-left: 3px solid #3B82F6; padding: 6px 10px; border-radius: 8px; margin-top: 5px; }
     .trans-text { font-size: 0.85rem; color: #1D4ED8; font-family: 'Noto Sans SC', sans-serif; font-weight: 700; line-height: 1.3; }
     
@@ -84,11 +103,6 @@ st.markdown("""
     
     .hide-pinyin rt { display: none !important; }
     .hide-pinyin ruby { line-height: 1.6 !important; }
-    
-    .main-header { 
-        font-family: 'Noto Serif SC', serif; font-weight: 900; color: #2c3e50; 
-        font-size: 2rem; text-align: center; margin-bottom: 20px; 
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -125,7 +139,6 @@ async def make_audio_v23(lesson_data, filename):
             raw = "".join([pair[0] for pair in line["t"]])
             txt = raw.replace("9月", "九月").replace("1号", "一号").replace("2号", "二号").replace("8月", "八月").replace("31号", "三十一号")
             clean = re.sub(r'[^\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef0-9]', '', txt)
-            
             temp_f = f"t_{i}_{int(time.time())}.mp3"
             try:
                 communicate = edge_tts.Communicate(clean, voice)
@@ -136,40 +149,78 @@ async def make_audio_v23(lesson_data, filename):
             finally:
                 if os.path.exists(temp_f): os.remove(temp_f)
 
+# 辅助函数：将音频文件转为Base64以嵌入HTML
+def get_audio_html(file_path):
+    with open(file_path, "rb") as f:
+        data = f.read()
+    b64 = base64.b64encode(data).decode()
+    # 这里的 HTML 包含自定义按钮和 JS 逻辑
+    return f"""
+    <div class="audio-container">
+        <audio id="player" controls src="data:audio/mp3;base64,{b64}" style="width: 100%; max-width: 400px;"></audio>
+        <div style="margin-top: 8px;">
+            <button class="speed-btn" onclick="document.getElementById('player').playbackRate = 0.8">🐢 0.8x</button>
+            <button class="speed-btn" onclick="document.getElementById('player').playbackRate = 1.0">▶ 1.0x</button>
+            <button class="speed-btn" onclick="document.getElementById('player').playbackRate = 1.25">🐇 1.25x</button>
+        </div>
+    </div>
+    """
+
 # --- 6. 主程序 ---
 def main():
     if "audio_v23" not in st.session_state: st.session_state.audio_v23 = ""
     if "lesson_v23" not in st.session_state: st.session_state.lesson_v23 = ""
 
-    with st.sidebar:
-        st.title("Settings")
-        ui_lang = st.selectbox("Language", ["Español", "English"])
-        # 获取对应语言包
-        ui = UI_TEXT[ui_lang]
+    # ==========================================
+    # 🔴 顶部控制面板 (替代侧边栏)
+    # ==========================================
+    with st.container():
+        st.markdown('<div class="control-panel">', unsafe_allow_html=True)
         
-        st.divider()
-        lesson_key = st.selectbox("Lección", list(LESSONS.keys()))
-        show_pinyin = st.toggle(ui["pinyin"], value=True)
-        show_trans = st.toggle(ui["trans"], value=False)
-        
-        st.divider()
-        if st.button(ui["refresh"]):
-            st.session_state.lesson_v23 = "" 
-            st.rerun()
+        # 第一行：标题 + 语言选择
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.markdown('<h2 style="margin:0; padding:0; color:#334155;">🐼 Reading Assistant</h2>', unsafe_allow_html=True)
+        with col2:
+            ui_lang = st.selectbox("", ["Español", "English"], label_visibility="collapsed")
+            ui = UI_TEXT[ui_lang]
 
-    st.markdown(f'<div class="main-header">{lesson_key}</div>', unsafe_allow_html=True)
-    
+        # 第二行：课文选择
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+        lesson_key = st.selectbox("Lección / Lesson", list(LESSONS.keys()))
+
+        # 第三行：开关 (拼音/翻译) + 强制刷新按钮
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns([1, 1, 2])
+        with c1:
+            show_pinyin = st.toggle(ui["pinyin"], value=True)
+        with c2:
+            show_trans = st.toggle(ui["trans"], value=False)
+        with c3:
+            if st.button(f"🔄 {ui['refresh']}", use_container_width=True):
+                st.session_state.lesson_v23 = ""
+                st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # 准备数据
     lesson_data = LESSONS[lesson_key]
     
+    # 生成/获取语音
     if st.session_state.lesson_v23 != lesson_key:
-        fname = f"audio_v24_{int(time.time())}.mp3"
+        fname = f"audio_v25_{int(time.time())}.mp3"
         with st.spinner(ui["audio_gen"]):
             asyncio.run(make_audio_v23(lesson_data, fname))
             st.session_state.audio_v23 = fname
             st.session_state.lesson_v23 = lesson_key
     
-    st.audio(st.session_state.audio_v23)
+    # ==========================================
+    # 🔴 自定义播放器 (带外置倍速按钮)
+    # ==========================================
+    if os.path.exists(st.session_state.audio_v23):
+        st.components.v1.html(get_audio_html(st.session_state.audio_v23), height=100)
     
+    # 阅读区
     p_class = "" if show_pinyin else "hide-pinyin"
     html_card = f'<div class="reading-scroll-area {p_class}">'
     for line in lesson_data:
@@ -188,7 +239,7 @@ def main():
     html_card += '</div>'
     st.markdown(html_card, unsafe_allow_html=True)
 
-    # 练习区 (这里动态调用 ui["typing_instr"])
+    # 练习区
     st.markdown(f'<div class="typing-section"><p class="instr-text">✍️ {ui["typing_instr"]}</p></div>', unsafe_allow_html=True)
     user_input = st.text_input("inp", placeholder="...", label_visibility="collapsed")
     
