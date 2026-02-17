@@ -3,234 +3,164 @@ import asyncio
 import edge_tts
 import os
 import time
-import random
 import re
 import base64
+import json
 
-# --- 1. 页面基本配置 ---
-st.set_page_config(
-    page_title="Long Wen Reading Pro", 
-    page_icon="🐼", 
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# --- 1. 页面配置与 CSS 强化 ---
+st.set_page_config(page_title="Long Wen AI Reading", page_icon="🐼", layout="wide", initial_sidebar_state="expanded")
 
-# --- 2. 界面双语语言包 ---
-UI_TEXT = {
-    "Español": {
-        "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Generando audio...",
-        "typing_instr": "Instrucción: Sigue el texto de arriba para practicar tu reconocimiento de caracteres y escritura.", 
-        "perfect": "🎉 ¡Excelente!", "refresh": "Regenerar Audio"
-    },
-    "English": {
-        "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Generating audio...",
-        "typing_instr": "Instruction: Follow the text above to practice your character recognition and typing skills.", 
-        "perfect": "🎉 Perfect!", "refresh": "Regenerate Audio"
-    }
-}
-
-# --- 3. 视觉设计 (CSS) - 锁定布局版 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
+    html, body, [data-testid="stAppViewContainer"] { background-color: #FFFBF0; overflow: hidden !important; height: 100vh; }
+    .block-container { padding-top: 1.5rem !important; padding-bottom: 0rem !important; max-width: 1200px !important; height: 100vh; display: flex; flex-direction: column; }
     
-    /* 1. 锁定全局：禁止网页主页面滚动 */
-    html, body, [data-testid="stAppViewContainer"] {
-        background-color: #FFFBF0;
-        overflow: hidden !important; 
-        height: 100vh;
-    }
-
-    .block-container { 
-        padding-top: 1.5rem !important; 
-        padding-bottom: 0rem !important; 
-        max-width: 1200px !important;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-    }
-
-    /* 2. 移除顶部杂项 */
-    header[data-testid="stHeader"] { background-color: transparent !important; visibility: visible !important; }
-    [data-testid="collapsedControl"] { color: #BE185D !important; }
+    /* 强制显示左上角按钮 */
+    header[data-testid="stHeader"] { background-color: transparent !important; visibility: visible !important; z-index: 1000000 !important; }
+    [data-testid="collapsedControl"] { background-color: white !important; border-radius: 0 10px 10px 0 !important; box-shadow: 2px 2px 10px rgba(0,0,0,0.1) !important; color: #BE185D !important; visibility: visible !important; display: flex !important; z-index: 1000001 !important; }
     #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], footer { visibility: hidden; }
 
-    /* 3. 标题与播放器压缩空间 */
-    .main-title { 
-        text-align: center; font-family: 'Noto Serif SC', serif; 
-        font-weight: 900; color: #334155; font-size: 1.6rem; margin-bottom: 5px; margin-top: -30px;
-    }
-
-    .audio-wrapper {
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        background: #fff; padding: 8px; border-radius: 12px; margin-bottom: 10px;
-        border: 1px solid #e2e8f0;
-    }
-    .speed-btn {
-        background-color: white; border: 1px solid #cbd5e1; border-radius: 6px;
-        padding: 3px 10px; margin: 0 4px; cursor: pointer; 
-        font-size: 12px; font-weight: bold; color: #475569;
-    }
-
-    /* 4. 【核心核心】智能阅读框高度锁定 */
-    /* 我们用 100vh 减去标题、播放器、打字框的高度，确保刚好撑满中间 */
-    .reading-scroll-area {
-        background-color: white; padding: 20px 30px; border-radius: 1.5rem;
-        border: 2px solid #eee; 
-        overflow-y: auto !important; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-        flex-grow: 1; /* 自动填充剩余空间 */
-        min-height: 100px;
-        height: calc(100vh - 360px) !important; 
-        margin-bottom: 15px;
-    }
-
-    /* 文本内容样式 */
-    .line-container { display: flex; margin-bottom: 8px; align-items: flex-start; justify-content: space-between; border-bottom: 1px solid #fcfcfc; padding-bottom: 8px;}
-    .left-zone { display: flex; flex: 1; align-items: flex-start; max-width: 75%; }
-    .role-label { min-width: 50px; font-weight: 900; color: #BE185D; font-size: 1rem; padding-top: 6px; font-family: 'Noto Serif SC', serif; }
-    ruby { ruby-position: under; padding: 0 2px; font-family: "Noto Serif SC", serif; font-size: 24px; font-weight: 900; color: #333; letter-spacing: 1px; }
-    rt { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: #15803D !important; font-weight: 700; padding-top: 4px !important; }
-    .right-zone { width: 22%; background: #EFF6FF; border-left: 3px solid #3B82F6; padding: 6px 10px; border-radius: 8px; }
-    .trans-text { font-size: 0.8rem; color: #1D4ED8; font-family: 'Noto Sans SC', sans-serif; font-weight: 700; line-height: 1.2; }
-
-    /* 5. 【核心核心】打字练习区：强力置底，不可撼动 */
-    .typing-section { 
-        background: #fff; padding: 12px 20px; border-radius: 1rem; 
-        border: 2px solid #3B82F6; /* 强化蓝色边框，提醒作业属性 */
-        box-shadow: 0 -4px 15px rgba(59, 130, 246, 0.1);
-        margin-bottom: 10px;
-    }
-    .instr-text { color: #1E40AF; font-size: 0.9em; font-weight: 800; margin-bottom: 5px; }
+    .main-title { text-align: center; font-family: 'Noto Serif SC', serif; font-weight: 900; color: #334155; font-size: 1.6rem; margin-bottom: 5px; margin-top: -30px; }
     
+    /* 阅读框锁定高度 */
+    .reading-scroll-area {
+        background-color: white; padding: 20px 30px; border-radius: 1.5rem; border: 2px solid #eee; overflow-y: auto !important; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03); height: calc(100vh - 360px) !important; margin-bottom: 15px; scroll-behavior: smooth;
+    }
+
+    .line-container { display: flex; margin-bottom: 8px; align-items: flex-start; justify-content: space-between; padding: 10px; border-radius: 12px; transition: all 0.4s ease; border-bottom: 1px solid #fcfcfc;}
+    .active-meimei { background-color: #f0fdf4 !important; border: 1px solid #4ade80 !important; }
+    .active-dawei { background-color: #eff6ff !important; border: 1px solid #60a5fa !important; }
+    
+    .role-label { min-width: 50px; font-weight: 900; color: #BE185D; font-size: 1rem; padding-top: 6px; font-family: 'Noto Serif SC', serif; }
+    ruby { ruby-position: under; padding: 0 2px; font-family: "Noto Serif SC", serif; font-size: 24px; font-weight: 900; color: #333; }
+    rt { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: #666; font-weight: 700; }
+    
+    .right-zone { width: 22%; background: #f8fafc; border-left: 3px solid #cbd5e1; padding: 6px 10px; border-radius: 8px; }
+    .trans-text { font-size: 0.8rem; color: #64748b; font-weight: 700; }
+
+    .typing-section { background: #fff; padding: 12px 20px; border-radius: 1rem; border: 2px solid #3B82F6; margin-bottom: 10px; box-shadow: 0 -4px 15px rgba(59, 130, 246, 0.1); }
+    .instr-text { color: #1E40AF; font-size: 0.9em; font-weight: 800; margin-bottom: 5px; }
     .hide-pinyin rt { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. 数据库 ---
-LESSONS = {
-    "Dialogue I": [
-        {"r": "美美", "t": [("大卫", "Dàwèi"), ("，", ""), ("请问", "qǐngwèn"), ("，", ""), ("今天", "jīntiān"), ("几号", "jǐ hào"), ("？", "")] , "tr_es": "David, disculpe, ¿qué fecha es hoy?", "tr_en": "David, what's the date today?"},
-        {"r": "大卫", "t": [("今天", "jīntiān"), ("9月1号", "jiǔ yuè yī hào"), ("。", "")] , "tr_es": "Hoy es 1 de septiembre.", "tr_en": "Today is Sept 1st."},
-        {"r": "美美", "t": [("今天", "jīntiān"), ("星期几", "xīngqī jǐ"), ("？", "")] , "tr_es": "¿Qué día es hoy?", "tr_en": "What day of week is it?"},
-        {"r": "大卫", "t": [("星期三", "xīngqī sān"), ("。", "")] , "tr_es": "Miércoles.", "tr_en": "Wednesday."},
-        {"r": "美美", "t": [("明天", "míngtiān"), ("几月几号", "jǐ yuè jǐ hào"), ("？", "")] , "tr_es": "¿Qué fecha es mañana?", "tr_en": "What's the date tomorrow?"},
-        {"r": "大卫", "t": [("明天", "míngtiān"), ("9月2号", "jiǔ yuè èr hào"), ("。", "")] , "tr_es": "Mañana es 2 de sept.", "tr_en": "Tomorrow is Sept 2nd."},
-        {"r": "美美", "t": [("昨天", "zuótiān"), ("呢", "ne"), ("？", "")] , "tr_es": "¿Y ayer?", "tr_en": "And yesterday?"},
-        {"r": "大卫", "t": [("昨天", "zuótiān"), ("是", "shì"), ("8月31号", "bā yuè sānshíyī hào"), ("。", "")] , "tr_es": "Ayer fue 31 de agosto.", "tr_en": "Yesterday was Aug 31st."}
-    ],
-    "Dialogue II": [
-        {"r": "美美", "t": [("明天", "míngtiān"), ("是", "shì"), ("星期六", "xīngqīliù"), ("，", ""), ("你", "nǐ"), ("去", "qù"), ("学校", "xuéxiào"), ("吗", "ma"), ("？", "")] , "tr_es": "¿Vas a la escuela mañana?", "tr_en": "Are you going to school tomorrow?"},
-        {"r": "大卫", "t": [("我", "wǒ"), ("去", "qù"), ("。", "")] , "tr_es": "Sí, voy.", "tr_en": "Yes, I am."},
-        {"r": "美美", "t": [("你", "nǐ"), ("去", "qù"), ("学校", "xuéxiào"), ("做", "zuò"), ("什么", "shénme"), ("？", "")] , "tr_es": "¿A qué vas?", "tr_en": "What will you do there?"},
-        {"r": "大卫", "t": [("我", "wǒ"), ("去", "qù"), ("学校", "xuéxiào"), ("看书", "kànshū"), ("。", ""), ("你", "nǐ"), ("吗", "ma"), ("？", "")] , "tr_es": "A leer. ¿Y tú?", "tr_en": "To read. And you?"},
-        {"r": "美美", "t": [("我", "wǒ"), ("不", "bù"), ("去", "qù"), ("。", ""), ("我", "wǒ"), ("去", "qù"), ("我", "wǒ"), ("的", "de"), ("西班牙朋友", "Xībānyá péngyou"), ("家", "jiā"), ("看猫", "kàn māo"), ("。", "")] , "tr_es": "Voy a casa de mi amigo.", "tr_en": "I'm going to my friend's house."},
-        {"r": "大卫", "t": [("是", "shì"), ("去", "qù"), ("西西", "Xīxi"), ("家", "jiā"), ("吗", "ma"), ("？", "")] , "tr_es": "¿A casa de Xixi?", "tr_en": "To Xixi's house?"},
-        {"r": "美美", "t": [("是的", "shìde"), ("。", "")] , "tr_es": "Sí.", "tr_en": "Yes."},
-        {"r": "大卫", "t": [("西西", "Xīxi"), ("家", "jiā"), ("有", "yǒu"), ("几", "jǐ"), ("只", "zhī"), ("猫", "māo"), ("？", "")] , "tr_es": "¿Cuántos gatos?", "tr_en": "How many cats?"},
-        {"r": "美美", "t": [("他", "tā"), ("有", "yǒu"), ("两", "liǎng"), ("只", "zhī"), ("猫", "māo"), ("。", "")] , "tr_es": "Tiene dos.", "tr_en": "He has two cats."}
+# --- 2. AI 核心逻辑 (模拟) ---
+def ai_generate_lesson(topic):
+    # 这里未来可以接入真正的 Gemini API
+    # 模拟生成的对话数据
+    return [
+        {"r": "美美", "t": [("这里", "zhèlǐ"), ("的", "de"), ("景色", "jǐngsè"), ("真", "zhēn"), ("美", "měi"), ("！", "")] , "tr_es": "¡El paisaje aquí es hermoso!", "tr_en": "The scenery here is beautiful!"},
+        {"r": "大卫", "t": [("是的", "shìde"), ("，", ""), ("我", "wǒ"), ("很", "hěn"), ("喜欢", "xǐhuan"), ("这里", "zhèlǐ"), ("。", "")] , "tr_es": "Sí, me gusta mucho este lugar.", "tr_en": "Yes, I like this place very much."}
     ]
-}
 
-# --- 5. 语音核心 ---
-async def make_audio_v23(lesson_data, filename):
+# --- 3. 语音与时间戳逻辑 ---
+async def make_audio_v28(lesson_data, filename):
+    timestamps = []
+    curr = 0.0
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(lesson_data):
             voice = "zh-CN-XiaoxiaoNeural" if line["r"] == "美美" else "zh-CN-YunxiNeural"
-            raw = "".join([pair[0] for pair in line["t"]])
-            txt = raw.replace("9月", "九月").replace("1号", "一号").replace("2号", "二号").replace("8月", "八月").replace("31号", "三十一号")
-            clean = re.sub(r'[^\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef0-9]', '', txt)
-            temp_f = f"t_{i}_{int(time.time())}.mp3"
-            try:
-                communicate = edge_tts.Communicate(clean, voice)
-                await communicate.save(temp_f)
-                with open(temp_f, 'rb') as chunk:
-                    final_file.write(chunk.read())
-            except: pass
-            finally:
-                if os.path.exists(temp_f): os.remove(temp_f)
+            raw = "".join([p[0] for p in line["t"]])
+            clean = re.sub(r'[^\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef0-9]', '', raw)
+            
+            dur = len(clean) * 0.45 + 0.6
+            timestamps.append({"start": curr, "end": curr + dur, "role": line["r"]})
+            
+            communicate = edge_tts.Communicate(clean, voice)
+            temp_f = f"v28_{i}.mp3"
+            await communicate.save(temp_f)
+            with open(temp_f, 'rb') as f: final_file.write(f.read())
+            os.remove(temp_f)
+            curr += dur
+    return timestamps
 
-def get_audio_html(file_path):
-    with open(file_path, "rb") as f:
-        data = f.read()
-    b64 = base64.b64encode(data).decode()
+def get_audio_player_v28(file_path, ts):
+    with open(file_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
     return f"""
-    <div class="audio-wrapper">
-        <audio id="player" controls src="data:audio/mp3;base64,{b64}" style="width: 100%; max-width: 450px; height: 32px;"></audio>
-        <div style="margin-top: 5px;">
-            <button class="speed-btn" onclick="document.getElementById('player').playbackRate = 0.8">🐢 0.8x</button>
-            <button class="speed-btn" onclick="document.getElementById('player').playbackRate = 1.0">▶ 1.0x</button>
-            <button class="speed-btn" onclick="document.getElementById('player').playbackRate = 1.25">🐇 1.25x</button>
+    <div style="display:flex; flex-direction:column; align-items:center; background:white; padding:8px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:10px;">
+        <audio id="p" controls src="data:audio/mp3;base64,{b64}" style="width:100%; max-width:450px; height:32px;"></audio>
+        <div style="margin-top:5px; display:flex; gap:10px;">
+            <button onclick="p.playbackRate=0.8" style="cursor:pointer; border-radius:4px; border:1px solid #ddd; padding:2px 8px;">🐢 0.8x</button>
+            <button onclick="p.playbackRate=1.0" style="cursor:pointer; border-radius:4px; border:1px solid #ddd; padding:2px 8px;">▶ 1.0x</button>
+            <button onclick="p.playbackRate=1.2" style="cursor:pointer; border-radius:4px; border:1px solid #ddd; padding:2px 8px;">🐇 1.2x</button>
         </div>
     </div>
+    <script>
+        const p = document.getElementById('p');
+        const ts = {json.dumps(ts)};
+        p.ontimeupdate = () => {{
+            const cur = p.currentTime / p.playbackRate;
+            ts.forEach((t, i) => {{
+                const el = window.parent.document.getElementById('line-'+i);
+                if (el) {{
+                    if (cur >= t.start && cur < t.end) {{
+                        el.classList.add(t.role === "美美" ? "active-meimei" : "active-dawei");
+                        el.scrollIntoView({{ behavior: 'smooth', block: 'nearest' }});
+                    }} else {{
+                        el.classList.remove("active-meimei", "active-dawei");
+                    }}
+                }}
+            }});
+        }};
+    </script>
     """
 
-# --- 6. 主程序 ---
+# --- 4. 主程序 ---
 def main():
-    if "audio_v23" not in st.session_state: st.session_state.audio_v23 = ""
-    if "lesson_v23" not in st.session_state: st.session_state.lesson_v23 = ""
+    if "data_v28" not in st.session_state: st.session_state.data_v28 = []
+    if "audio_v28" not in st.session_state: st.session_state.audio_v28 = ""
+    if "ts_v28" not in st.session_state: st.session_state.ts_v28 = []
 
     with st.sidebar:
-        st.title("🐼 Settings")
+        st.title("🐼 AI Workshop")
+        mode = st.radio("Mode", ["Preset Lessons", "AI Generator 🤖"])
+        
+        if mode == "AI Generator 🤖":
+            topic = st.text_input("Enter Topic (e.g. Shopping)", "Fruits")
+            if st.button("Generate Lesson ✨"):
+                st.session_state.data_v28 = ai_generate_lesson(topic)
+                st.session_state.audio_v28 = "" # 强制更新音频
+        else:
+            # 原有的 Dialogue I 逻辑
+            st.session_state.data_v28 = [
+                {"r": "美美", "t": [("大卫", "Dàwèi"), ("，", ""), ("请问", "qǐngwèn"), ("今天", "jīntiān"), ("几号", "jǐ hào"), ("？", "")] , "tr_es": "¿Qué fecha es hoy?", "tr_en": "What date is today?"},
+                {"r": "大卫", "t": [("今天", "jīntiān"), ("9月1号", "jiǔ yuè yī hào"), ("。", "")] , "tr_es": "1 de septiembre.", "tr_en": "September 1st."}
+            ]
+
+        st.divider()
         ui_lang = st.selectbox("Language", ["Español", "English"])
         ui = UI_TEXT[ui_lang]
-        st.divider()
-        lesson_key = st.selectbox("Lección", list(LESSONS.keys()))
         show_pinyin = st.toggle(ui["pinyin"], value=True)
         show_trans = st.toggle(ui["trans"], value=False)
-        st.divider()
-        if st.button(f"🔄 {ui['refresh']}", use_container_width=True):
-            st.session_state.lesson_v23 = ""
-            st.rerun()
 
-    st.markdown(f'<div class="main-title">{lesson_key}</div>', unsafe_allow_html=True)
+    # 渲染
+    st.markdown(f'<div class="main-title">{"AI Lesson" if mode != "Preset Lessons" else "Dialogue I"}</div>', unsafe_allow_html=True)
     
-    lesson_data = LESSONS[lesson_key]
+    if st.session_state.data_v28 and not st.session_state.audio_v28:
+        fname = f"v28_{int(time.time())}.mp3"
+        st.session_state.ts_v28 = asyncio.run(make_audio_v28(st.session_state.data_v28, fname))
+        st.session_state.audio_v28 = fname
     
-    if st.session_state.lesson_v23 != lesson_key:
-        fname = f"audio_v26_{int(time.time())}.mp3"
-        asyncio.run(make_audio_v23(lesson_data, fname))
-        st.session_state.audio_v23 = fname
-        st.session_state.lesson_v23 = lesson_key
-    
-    if os.path.exists(st.session_state.audio_v23):
-        st.components.v1.html(get_audio_html(st.session_state.audio_v23), height=85)
-    
+    if os.path.exists(st.session_state.audio_v28):
+        st.components.v1.html(get_audio_player_v28(st.session_state.audio_v28, st.session_state.ts_v28), height=100)
+
     p_class = "" if show_pinyin else "hide-pinyin"
-    html_card = f'<div class="reading-scroll-area {p_class}">'
-    for line in lesson_data:
-        html_card += '<div class="line-container">'
-        html_card += f'<div class="left-zone"><div class="role-label">{line["r"]}</div><div class="text-content">'
+    html = f'<div class="reading-scroll-area {p_class}">'
+    for idx, line in enumerate(st.session_state.data_v28):
+        html += f'<div class="line-container" id="line-{idx}">'
+        html += f'<div class="left-zone"><div class="role-label">{line["r"]}</div><div>'
         for char, py in line["t"]:
-            if show_pinyin and py:
-                html_card += f'<ruby>{char}<rt>{py}</rt></ruby>'
-            else:
-                html_card += f'<ruby style="line-height:1.4;">{char}</ruby>'
-        html_card += '</div></div>'
+            html += f'<ruby>{char}<rt>{py}</rt></ruby>' if show_pinyin and py else f'<ruby style="line-height:1.4;">{char}</ruby>'
+        html += '</div></div>'
         if show_trans:
-            t_content = line["tr_en"] if ui_lang == "English" else line["tr_es"]
-            html_card += f'<div class="right-zone"><span class="trans-text">{t_content}</span></div>'
-        html_card += '</div>'
-    html_card += '</div>'
-    st.markdown(html_card, unsafe_allow_html=True)
+            html += f'<div class="right-zone"><span class="trans-text">{line["tr_es"] if ui_lang=="Español" else line["tr_en"]}</span></div>'
+        html += '</div>'
+    st.markdown(html + "</div>", unsafe_allow_html=True)
 
-    # 练习区 (强制置底)
     st.markdown(f'<div class="typing-section"><p class="instr-text">✍️ {ui["typing_instr"]}</p></div>', unsafe_allow_html=True)
-    user_input = st.text_input("inp", placeholder="...", label_visibility="collapsed")
-    
-    full_text = "".join(["".join([p[0] for p in l["t"]]) for l in lesson_data])
-    
-    if user_input:
-        res = '<div style="background:white; padding:10px 15px; border-radius:10px; border:2px solid #ddd; margin-top:5px;">'
-        max_l = max(len(full_text), len(user_input))
-        for i in range(max_l):
-            if i < len(user_input) and i < len(full_text):
-                color = "#2ecc71" if user_input[i] == full_text[i] else "#e74c3c"
-                res += f'<span style="color:{color}; font-size:20px; font-weight:bold;">{user_input[i]}</span>'
-            elif i < len(user_input):
-                res += f'<span style="color:#e74c3c; font-size:20px;">{user_input[i]}</span>'
-        st.markdown(res + '</div>', unsafe_allow_html=True)
-        if user_input.strip() == full_text.strip(): st.balloons()
+    st.text_input("inp", placeholder="...", label_visibility="collapsed")
 
 if __name__ == "__main__":
     main()
