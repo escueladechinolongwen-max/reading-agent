@@ -7,7 +7,6 @@ import re
 import base64
 import json
 import google.generativeai as genai
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 # --- 1. 核心配置 ---
 st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="wide", initial_sidebar_state="expanded")
@@ -41,58 +40,57 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 预设保底数据 ---
-SAFE_DATA = [
-    {"r": "System", "t": [("系", "xì"), ("统", "tǒng"), ("准", "zhǔn"), ("备", "bèi"), ("就", "jiù"), ("绪", "xù")], "tr_es": "Sistema listo", "tr_en": "System Ready"},
-    {"r": "System", "t": [("请", "qǐng"), ("点", "diǎn"), ("击", "jī"), ("生", "shēng"), ("成", "chéng")], "tr_es": "Haga clic en Generar", "tr_en": "Click Generate"}
+# --- 2. 只有在报错时才会出现的数据 (不再是“你好”) ---
+ERROR_DATA = [
+    {"r": "System", "t": [("AI", ""), ("生", "shēng"), ("成", "chéng"), ("失", "shī"), ("败", "bài")], "tr_es": "Fallo de AI", "tr_en": "AI Failed"},
+    {"r": "System", "t": [("请", "qǐng"), ("看", "kàn"), ("报", "bào"), ("错", "cuò")], "tr_es": "Ver error arriba", "tr_en": "Check error above"}
 ]
 
-# --- 3. 核心修复：AI 生成逻辑 ---
+# --- 3. 核心修复：显式报错版 AI 逻辑 ---
 def call_real_ai(topic, level, keywords):
     if not MY_API_KEY:
-        st.error("❌ Error: API Key not found in Environment Variables.")
-        return SAFE_DATA
+        st.error("❌ 致命错误: 没有找到 GOOGLE_API_KEY。请检查 Render Environment Variables。")
+        return ERROR_DATA
     
     try:
         genai.configure(api_key=MY_API_KEY)
         
-        # 💡 修复1：彻底关闭安全过滤器 (BLOCK_NONE)
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
-        
+        # 换用最基础的 Prompt 方式，不依赖高级 JSON Mode，兼容性最好
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f"""
-        You are a Chinese teacher API.
-        Create a dialogue (4-6 sentences) between '美美' (Meimei) and '大卫' (David).
-        Topic: {topic}. Level: {level}. Include: {keywords}.
+        Act as a Chinese teacher. Create a dialogue (4 sentences) between '美美' and '大卫'.
+        Topic: {topic}. Level: {level}. Keywords: {keywords}.
         
-        IMPORTANT: Return ONLY valid JSON array. No markdown, no ```.
-        Format:
+        STRICTLY OUTPUT RAW JSON ARRAY. NO MARKDOWN. NO ```.
+        Format example:
         [
-          {{"r": "美美", "t": [["汉", "hàn"], ["字", "zì"]], "tr_es": "Spanish", "tr_en": "English"}}
+          {{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"]], "tr_es": "Hola", "tr_en": "Hi"}},
+          {{"r": "大卫", "t": [["你", "nǐ"], ["好", "hǎo"]], "tr_es": "Hola", "tr_en": "Hi"}}
         ]
         """
         
-        # 💡 修复2：发送请求带上安全设置
-        response = model.generate_content(prompt, safety_settings=safety_settings)
+        # 发送请求
+        response = model.generate_content(prompt)
         
-        # 💡 修复3：清洗数据
+        # 调试：如果有问题，把 AI 返回的原始文本打印出来
         raw_text = response.text.strip()
-        # 尝试去掉 ```json 和 ```
+        
+        # 尝试清洗 JSON
         if "```" in raw_text:
             raw_text = raw_text.replace("```json", "").replace("```", "")
-            
+        
+        # 尝试解析
         return json.loads(raw_text)
 
     except Exception as e:
-        # 💡 修复4：将真实错误打印在屏幕上，方便调试
-        st.error(f"🔴 AI Error Detail: {str(e)}")
-        return SAFE_DATA
+        # 🚨 关键：直接在网页上打印出具体的 Python 错误代码！
+        st.error(f"🔴 AI Error: {str(e)}")
+        
+        # 如果是 Key 错误，这里会显示 403
+        # 如果是 模型不存在，这里会显示 404
+        # 如果是 格式不对，这里会显示 JSONDecodeError
+        return ERROR_DATA
 
 # --- 4. 语音合成 ---
 async def make_audio_safe(lesson_data, filename):
@@ -103,10 +101,8 @@ async def make_audio_safe(lesson_data, filename):
             voice = "zh-CN-XiaoxiaoNeural" if line["r"] in ["美美", "System"] else "zh-CN-YunxiNeural"
             raw = "".join([p[0] for p in line.get("t", [])])
             if not raw: continue
-            
             dur = len(raw) * 0.28
             if dur < 1.0: dur = 1.0
-            
             ts.append({"start": curr, "end": curr + dur, "role": line["r"]})
             try:
                 communicate = edge_tts.Communicate(raw, voice)
@@ -149,7 +145,10 @@ def get_player_html(file_path, ts):
     """
 
 def main():
-    if "data_v31" not in st.session_state: st.session_state.data_v31 = SAFE_DATA
+    if "data_v31" not in st.session_state: st.session_state.data_v31 = [
+        {"r": "System", "t": [("欢", "huān"), ("迎", "yíng")], "tr_es": "Bienvenido", "tr_en": "Welcome"},
+        {"r": "System", "t": [("请", "qǐng"), ("生", "shēng"), ("成", "chéng")], "tr_es": "Por favor genere", "tr_en": "Please generate"}
+    ]
     if "audio_v31" not in st.session_state: st.session_state.audio_v31 = ""
     if "ts_v31" not in st.session_state: st.session_state.ts_v31 = []
 
@@ -165,12 +164,16 @@ def main():
             with col2: keywords = st.text_input(ui["keywords"], "苹果, 多少钱")
             if st.button(ui["gen_btn"]):
                 with st.spinner(ui["ai_thinking"]):
+                    # 🔴 关键：调用时不给任何面子，直接跑
                     st.session_state.data_v31 = call_real_ai(topic, level, keywords)
                     st.session_state.audio_v31 = ""
                     st.rerun()
         else:
             if st.button("Load Demo"):
-                st.session_state.data_v31 = SAFE_DATA
+                st.session_state.data_v31 = [
+                    {"r": "美美", "t": [("你好", "nǐhǎo")], "tr_es": "Hola", "tr_en": "Hi"},
+                    {"r": "大卫", "t": [("你好", "nǐhǎo")], "tr_es": "Hola", "tr_en": "Hi"}
+                ]
                 st.session_state.audio_v31 = ""
                 st.rerun()
         st.divider()
@@ -182,7 +185,7 @@ def main():
 
     st.markdown('<div class="main-title">Reading Assistant</div>', unsafe_allow_html=True)
     if not st.session_state.audio_v31:
-        fname = f"v35_{int(time.time())}.mp3"
+        fname = f"v36_{int(time.time())}.mp3"
         st.session_state.ts_v31 = asyncio.run(make_audio_safe(st.session_state.data_v31, fname))
         st.session_state.audio_v31 = fname
     
