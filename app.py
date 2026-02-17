@@ -9,26 +9,26 @@ import base64
 
 # --- 1. 页面基本配置 ---
 st.set_page_config(
-    page_title="Long Wen Reading Assistant", 
+    page_title="Long Wen Reading Pro", 
     page_icon="🐼", 
     layout="wide",
-    initial_sidebar_state="expanded" # 默认在电脑上展开侧边栏
+    initial_sidebar_state="expanded" # 强制展开侧边栏
 )
 
 # --- 2. 界面双语语言包 ---
 UI_TEXT = {
     "Español": {
-        "sidebar_title": "Configuración",
+        "title": "Asistente de Lectura",
+        "settings": "Configuración",
         "pinyin": "Pinyin", "trans": "Traducción", "audio_gen": "Generando audio...",
-        "typing_title": "✍️ Práctica", 
         "typing_instr": "Instrucción: Sigue el texto de arriba para practicar tu reconocimiento de caracteres y escritura.", 
         "perfect": "🎉 ¡Excelente!", "refresh": "Regenerar Audio",
         "speed": "Velocidad"
     },
     "English": {
-        "sidebar_title": "Settings",
+        "title": "Reading Assistant",
+        "settings": "Settings",
         "pinyin": "Pinyin", "trans": "Translation", "audio_gen": "Generating audio...",
-        "typing_title": "✍️ Practice", 
         "typing_instr": "Instruction: Follow the text above to practice your character recognition and typing skills.", 
         "perfect": "🎉 Perfect!", "refresh": "Regenerate Audio",
         "speed": "Speed"
@@ -42,17 +42,21 @@ st.markdown("""
     
     .stApp { background-color: #FFFBF0; }
     
-    /* 顶部紧凑化：把空间留给阅读 */
+    /* 1. 顶部布局：调整间距 */
     .block-container { 
         padding-top: 2rem !important; 
         padding-bottom: 2rem !important; 
         max-width: 1200px !important; 
     }
 
-    /* 隐藏 Streamlit 自带的无关元素，但保留侧边栏开关！ */
+    /* 2. 关键修复：不要隐藏 header，否则左上角的箭头 > 会消失！ */
+    /* header {visibility: hidden;}  <-- 这行代码被删除了 */
+    
+    /* 只隐藏右上角的汉堡菜单 (三个点) */
     #MainMenu {visibility: hidden;}
+    [data-testid="stToolbar"] {visibility: hidden;}
+    [data-testid="stDecoration"] {display: none;} /* 隐藏顶部的彩条 */
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     
     /* 侧边栏美化 */
     section[data-testid="stSidebar"] {
@@ -60,43 +64,45 @@ st.markdown("""
         border-right: 1px solid #e2e8f0;
     }
 
-    /* 自定义播放器容器 (放在中间) */
-    .audio-container {
+    /* 3. 自定义播放器区域 */
+    .audio-wrapper {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 20px;
+        background: #fff; padding: 10px; border-radius: 12px; margin-top: 0px; margin-bottom: 15px;
         border: 1px solid #e2e8f0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
     
-    /* 倍速按钮样式 */
+    /* 倍速按钮 */
     .speed-btn {
-        background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px;
-        padding: 5px 15px; margin: 0 5px; cursor: pointer; font-size: 14px; font-weight: bold; color: #475569;
+        background-color: white; border: 1px solid #cbd5e1; border-radius: 8px;
+        padding: 4px 12px; margin: 0 5px; cursor: pointer; 
+        font-size: 13px; font-weight: bold; color: #475569;
         transition: all 0.2s;
     }
-    .speed-btn:hover { background-color: #e2e8f0; color: #1e293b; border-color: #94a3b8; }
+    .speed-btn:hover { background-color: #e0f2fe; color: #0284c7; border-color: #0284c7; }
     .speed-btn:active { transform: scale(0.95); }
 
-    /* 阅读框 (最大化高度) */
+    /* 4. 阅读框：高度最大化 */
     .reading-scroll-area {
-        background-color: white; padding: 30px 40px; border-radius: 1.5rem;
-        border: 2px solid #eee; overflow-y: auto; margin-bottom: 20px; 
+        background-color: white; padding: 25px 30px; border-radius: 1.5rem;
+        border: 2px solid #eee; overflow-y: auto; margin-bottom: 15px; 
+        transition: height 0.3s ease;
         box-shadow: 0 4px 15px rgba(0,0,0,0.03);
     }
     
-    /* 屏幕适配：根据屏幕高度自动调整阅读区高度 */
-    @media (min-height: 900px) { .reading-scroll-area { height: 65vh; } }
-    @media (max-height: 899px) { .reading-scroll-area { height: 55vh; } }
-    @media (max-height: 700px) { .reading-scroll-area { height: 50vh; } }
+    /* 根据屏幕高度智能调整阅读区高度 */
+    @media (min-height: 901px) { .reading-scroll-area { height: 65vh; } }
+    @media (max-height: 900px) { .reading-scroll-area { height: 55vh; } }
+    @media (max-height: 700px) { .reading-scroll-area { height: 45vh; } }
 
     /* 文本样式 */
-    .line-container { display: flex; margin-bottom: 12px; align-items: flex-start; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid #fcfcfc; }
+    .line-container { display: flex; margin-bottom: 8px; align-items: flex-start; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid #fcfcfc; }
     .left-zone { display: flex; flex: 1; align-items: flex-start; max-width: 75%; }
-    .role-label { min-width: 50px; font-weight: 900; color: #BE185D; font-size: 1.1rem; padding-top: 6px; font-family: 'Noto Serif SC', serif; }
-    ruby { ruby-position: under; padding: 0 2px; font-family: "Noto Serif SC", serif; font-size: 26px; font-weight: 900; color: #333; letter-spacing: 1px; }
-    rt { font-family: 'Noto Sans SC', sans-serif; font-size: 13px; color: #15803D !important; font-weight: 700; padding-top: 4px !important; }
-    .right-zone { width: 22%; background: #EFF6FF; border-left: 3px solid #3B82F6; padding: 8px 12px; border-radius: 8px; margin-top: 5px; }
-    .trans-text { font-size: 0.9rem; color: #1D4ED8; font-family: 'Noto Sans SC', sans-serif; font-weight: 700; line-height: 1.4; }
+    .role-label { min-width: 50px; font-weight: 900; color: #BE185D; font-size: 1rem; padding-top: 6px; font-family: 'Noto Serif SC', serif; }
+    ruby { ruby-position: under; padding: 0 2px; font-family: "Noto Serif SC", serif; font-size: 24px; font-weight: 900; color: #333; letter-spacing: 1px; }
+    rt { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: #15803D !important; font-weight: 700; padding-top: 4px !important; }
+    .right-zone { width: 22%; background: #EFF6FF; border-left: 3px solid #3B82F6; padding: 6px 10px; border-radius: 8px; margin-top: 5px; }
+    .trans-text { font-size: 0.85rem; color: #1D4ED8; font-family: 'Noto Sans SC', sans-serif; font-weight: 700; line-height: 1.3; }
     
     .typing-section { background: #fff; padding: 15px 25px; border-radius: 1rem; border: 2px solid #eee; box-shadow: 0 -4px 15px rgba(0,0,0,0.04); }
     .instr-text { color: #555; font-size: 0.95em; font-weight: 700; margin-bottom: 8px; }
@@ -104,8 +110,10 @@ st.markdown("""
     .hide-pinyin rt { display: none !important; }
     .hide-pinyin ruby { line-height: 1.6 !important; }
     
-    /* 侧边栏标题美化 */
-    .sidebar-header { font-size: 1.2rem; font-weight: 900; color: #334155; margin-bottom: 20px; font-family: 'Noto Serif SC', serif;}
+    .main-title { 
+        text-align: center; font-family: 'Noto Serif SC', serif; 
+        font-weight: 900; color: #334155; font-size: 1.8rem; margin-bottom: 10px; margin-top: -10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -152,14 +160,15 @@ async def make_audio_v23(lesson_data, filename):
             finally:
                 if os.path.exists(temp_f): os.remove(temp_f)
 
+# 辅助：自定义HTML5播放器
 def get_audio_html(file_path):
     with open(file_path, "rb") as f:
         data = f.read()
     b64 = base64.b64encode(data).decode()
     return f"""
-    <div class="audio-container">
-        <audio id="player" controls src="data:audio/mp3;base64,{b64}" style="width: 100%; max-width: 500px;"></audio>
-        <div style="margin-top: 12px;">
+    <div class="audio-wrapper">
+        <audio id="player" controls src="data:audio/mp3;base64,{b64}" style="width: 100%; max-width: 500px; height: 35px;"></audio>
+        <div style="margin-top: 8px; display: flex; gap: 10px; align-items: center;">
             <button class="speed-btn" onclick="document.getElementById('player').playbackRate = 0.8">🐢 0.8x</button>
             <button class="speed-btn" onclick="document.getElementById('player').playbackRate = 1.0">▶ 1.0x</button>
             <button class="speed-btn" onclick="document.getElementById('player').playbackRate = 1.25">🐇 1.25x</button>
@@ -173,54 +182,56 @@ def main():
     if "lesson_v23" not in st.session_state: st.session_state.lesson_v23 = ""
 
     # ==========================================
-    # 🔴 侧边栏 (Sidebar) - 回归
+    # 🔴 侧边栏 (Sidebar) - 设置区
     # ==========================================
     with st.sidebar:
-        # 语言选择放在最上面
+        st.title("🐼 Settings")
+        
+        # 语言选择
         ui_lang = st.selectbox("Language / Idioma", ["Español", "English"])
         ui = UI_TEXT[ui_lang]
-        
-        st.markdown(f'<div class="sidebar-header">🛠️ {ui["sidebar_title"]}</div>', unsafe_allow_html=True)
+        st.divider()
         
         # 课文选择
         lesson_key = st.selectbox("Lección / Lesson", list(LESSONS.keys()))
         
-        st.divider()
-        
         # 开关
-        show_pinyin = st.toggle(ui["pinyin"], value=True)
-        show_trans = st.toggle(ui["trans"], value=False)
-        
+        c1, c2 = st.columns(2)
+        with c1:
+            show_pinyin = st.toggle(ui["pinyin"], value=True)
+        with c2:
+            show_trans = st.toggle(ui["trans"], value=False)
+            
         st.divider()
         
-        # 刷新按钮 (加宽)
+        # 刷新按钮
         if st.button(f"🔄 {ui['refresh']}", use_container_width=True):
             st.session_state.lesson_v23 = ""
             st.rerun()
-            
+
     # ==========================================
-    # 🔴 主区域 (Main Area)
+    # 🔴 核心阅读区 (Main Area)
     # ==========================================
     
-    # 1. 标题 (简洁化)
-    st.markdown(f'<h2 style="text-align:center; color:#334155; margin-bottom:10px;">🐼 {lesson_key}</h2>', unsafe_allow_html=True)
-
+    # 标题
+    st.markdown(f'<div class="main-title">{lesson_key}</div>', unsafe_allow_html=True)
+    
     # 准备数据
     lesson_data = LESSONS[lesson_key]
     
-    # 2. 生成语音
+    # 生成音频
     if st.session_state.lesson_v23 != lesson_key:
-        fname = f"audio_v26_{int(time.time())}.mp3"
+        fname = f"audio_v25_3_{int(time.time())}.mp3"
         with st.spinner(ui["audio_gen"]):
             asyncio.run(make_audio_v23(lesson_data, fname))
             st.session_state.audio_v23 = fname
             st.session_state.lesson_v23 = lesson_key
     
-    # 3. 播放器 (放在中间，带倍速)
+    # 播放器
     if os.path.exists(st.session_state.audio_v23):
-        st.components.v1.html(get_audio_html(st.session_state.audio_v23), height=130)
+        st.components.v1.html(get_audio_html(st.session_state.audio_v23), height=95)
     
-    # 4. 阅读区 (高度最大化)
+    # 阅读卡片
     p_class = "" if show_pinyin else "hide-pinyin"
     html_card = f'<div class="reading-scroll-area {p_class}">'
     for line in lesson_data:
@@ -239,7 +250,7 @@ def main():
     html_card += '</div>'
     st.markdown(html_card, unsafe_allow_html=True)
 
-    # 5. 练习区
+    # 练习区
     st.markdown(f'<div class="typing-section"><p class="instr-text">✍️ {ui["typing_instr"]}</p></div>', unsafe_allow_html=True)
     user_input = st.text_input("inp", placeholder="...", label_visibility="collapsed")
     
