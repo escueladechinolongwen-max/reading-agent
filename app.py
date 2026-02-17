@@ -7,26 +7,17 @@ import re
 import base64
 import json
 import google.generativeai as genai
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
-# --- 1. 配置与样式 ---
+# --- 1. 核心配置 ---
 st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="wide", initial_sidebar_state="expanded")
 
-# 自动从 Render 环境变量抓取
-MY_API_KEY = os.environ.get("GOOGLE_API_KEY") 
+# 获取 API Key
+MY_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 UI_TEXT = {
-    "Español": { 
-        "pinyin": "Pinyin", "trans": "Traducción", "typing_instr": "Instrucción: Sigue el texto de arriba para practicar.", 
-        "refresh": "Regenerar Audio", "gen_btn": "Generar Lección ✨", 
-        "topic": "Tema", "level": "Nivel (HSK)", "keywords": "Palabras clave",
-        "ai_thinking": "La IA está pensando..."
-    },
-    "English": { 
-        "pinyin": "Pinyin", "trans": "Translation", "typing_instr": "Instruction: Follow the text above to practice.", 
-        "refresh": "Regenerate Audio", "gen_btn": "Generate Lesson ✨", 
-        "topic": "Topic", "level": "Level (HSK)", "keywords": "Keywords",
-        "ai_thinking": "AI is thinking..."
-    }
+    "Español": { "pinyin": "Pinyin", "trans": "Traducción", "typing_instr": "Instrucción: Sigue el texto de arriba para practicar.", "refresh": "Regenerar Audio", "gen_btn": "Generar Lección ✨", "topic": "Tema", "level": "Nivel (HSK)", "keywords": "Palabras clave", "ai_thinking": "La IA está pensando..." },
+    "English": { "pinyin": "Pinyin", "trans": "Translation", "typing_instr": "Instruction: Follow the text above to practice.", "refresh": "Regenerate Audio", "gen_btn": "Generate Lesson ✨", "topic": "Topic", "level": "Level (HSK)", "keywords": "Keywords", "ai_thinking": "AI is thinking..." }
 }
 
 st.markdown("""
@@ -35,18 +26,10 @@ st.markdown("""
     html, body, [data-testid="stAppViewContainer"] { background-color: #FFFBF0; overflow: hidden !important; height: 100vh; }
     .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; max-width: 1200px !important; height: 100vh; display: flex; flex-direction: column; }
     header[data-testid="stHeader"] { background-color: transparent !important; visibility: visible !important; height: 0px !important; z-index: 100; }
-    [data-testid="collapsedControl"] { 
-        visibility: visible !important; display: flex !important; background-color: #BE185D !important; color: white !important; 
-        border-radius: 50% !important; padding: 0.5rem !important; top: 60px !important; left: 20px !important; 
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.2) !important; z-index: 999999 !important; 
-    }
+    [data-testid="collapsedControl"] { visibility: visible !important; display: flex !important; background-color: #BE185D !important; color: white !important; border-radius: 50% !important; padding: 0.5rem !important; top: 60px !important; left: 20px !important; box-shadow: 2px 2px 10px rgba(0,0,0,0.2) !important; z-index: 999999 !important; }
     #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"], footer { visibility: hidden; }
     .main-title { text-align: center; font-family: 'Noto Serif SC', serif; font-weight: 900; color: #334155; font-size: 1.6rem; margin-bottom: 5px; margin-top: -10px; }
-    .reading-scroll-area { 
-        background-color: white; padding: 20px 30px; border-radius: 1.5rem; border: 2px solid #eee; 
-        overflow-y: auto !important; box-shadow: 0 4px 15px rgba(0,0,0,0.03); 
-        height: calc(100vh - 380px) !important; margin-bottom: 15px; scroll-behavior: smooth; 
-    }
+    .reading-scroll-area { background-color: white; padding: 20px 30px; border-radius: 1.5rem; border: 2px solid #eee; overflow-y: auto !important; box-shadow: 0 4px 15px rgba(0,0,0,0.03); height: calc(100vh - 380px) !important; margin-bottom: 15px; scroll-behavior: smooth; }
     .line-container { display: flex; margin-bottom: 8px; padding: 10px; border-radius: 12px; transition: all 0.2s ease; border-bottom: 1px solid #fcfcfc;}
     .active-meimei { background-color: #dcfce7 !important; border-left: 5px solid #22c55e !important; }
     .active-dawei { background-color: #dbeafe !important; border-left: 5px solid #3b82f6 !important; }
@@ -58,46 +41,72 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. 基础对话 ---
-BASE_LESSON = [
-    {"r": "美美", "t": [("你好", "nǐhǎo")], "tr_es": "Hola", "tr_en": "Hello"},
-    {"r": "大卫", "t": [("你好", "nǐhǎo")], "tr_es": "Hola", "tr_en": "Hello"}
+# --- 2. 预设保底数据 ---
+SAFE_DATA = [
+    {"r": "System", "t": [("系", "xì"), ("统", "tǒng"), ("准", "zhǔn"), ("备", "bèi"), ("就", "jiù"), ("绪", "xù")], "tr_es": "Sistema listo", "tr_en": "System Ready"},
+    {"r": "System", "t": [("请", "qǐng"), ("点", "diǎn"), ("击", "jī"), ("生", "shēng"), ("成", "chéng")], "tr_es": "Haga clic en Generar", "tr_en": "Click Generate"}
 ]
 
-# --- 4. 增强版 AI 解析逻辑 ---
+# --- 3. 核心修复：AI 生成逻辑 ---
 def call_real_ai(topic, level, keywords):
     if not MY_API_KEY:
-        return BASE_LESSON
+        st.error("❌ Error: API Key not found in Environment Variables.")
+        return SAFE_DATA
+    
     try:
         genai.configure(api_key=MY_API_KEY)
+        
+        # 💡 修复1：彻底关闭安全过滤器 (BLOCK_NONE)
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+        
         model = genai.GenerativeModel('gemini-1.5-flash')
-        # 指令升级：强制纯净 JSON
+        
         prompt = f"""
-        TASK: Create a Chinese dialogue.
-        ROLES: '美美' (Female) and '大卫' (Male).
-        TOPIC: {topic}, LEVEL: {level}, KEYWORDS: {keywords}.
-        FORMAT: Output ONLY a valid JSON array. No text before or after.
-        STRUCTURE: [{{"r": "美美", "t": [["汉", "hàn"]], "tr_es": "Spanish", "tr_en": "English"}}]
+        You are a Chinese teacher API.
+        Create a dialogue (4-6 sentences) between '美美' (Meimei) and '大卫' (David).
+        Topic: {topic}. Level: {level}. Include: {keywords}.
+        
+        IMPORTANT: Return ONLY valid JSON array. No markdown, no ```.
+        Format:
+        [
+          {{"r": "美美", "t": [["汉", "hàn"], ["字", "zì"]], "tr_es": "Spanish", "tr_en": "English"}}
+        ]
         """
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-        # 暴力提取 JSON 部分
-        match = re.search(r'\[.*\]', text, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-        return json.loads(text)
-    except:
-        return BASE_LESSON # 失败时保底，不显示红字
+        
+        # 💡 修复2：发送请求带上安全设置
+        response = model.generate_content(prompt, safety_settings=safety_settings)
+        
+        # 💡 修复3：清洗数据
+        raw_text = response.text.strip()
+        # 尝试去掉 ```json 和 ```
+        if "```" in raw_text:
+            raw_text = raw_text.replace("```json", "").replace("```", "")
+            
+        return json.loads(raw_text)
 
-# --- 5. 语音与播放器 ---
+    except Exception as e:
+        # 💡 修复4：将真实错误打印在屏幕上，方便调试
+        st.error(f"🔴 AI Error Detail: {str(e)}")
+        return SAFE_DATA
+
+# --- 4. 语音合成 ---
 async def make_audio_safe(lesson_data, filename):
     ts = []
     curr = 0.0
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(lesson_data):
-            voice = "zh-CN-XiaoxiaoNeural" if line["r"] == "美美" else "zh-CN-YunxiNeural"
-            raw = "".join([p[0] for p in line["t"]])
-            dur = len(raw) * 0.3 + 1.0
+            voice = "zh-CN-XiaoxiaoNeural" if line["r"] in ["美美", "System"] else "zh-CN-YunxiNeural"
+            raw = "".join([p[0] for p in line.get("t", [])])
+            if not raw: continue
+            
+            dur = len(raw) * 0.28
+            if dur < 1.0: dur = 1.0
+            
             ts.append({"start": curr, "end": curr + dur, "role": line["r"]})
             try:
                 communicate = edge_tts.Communicate(raw, voice)
@@ -140,7 +149,7 @@ def get_player_html(file_path, ts):
     """
 
 def main():
-    if "data_v31" not in st.session_state: st.session_state.data_v31 = BASE_LESSON
+    if "data_v31" not in st.session_state: st.session_state.data_v31 = SAFE_DATA
     if "audio_v31" not in st.session_state: st.session_state.audio_v31 = ""
     if "ts_v31" not in st.session_state: st.session_state.ts_v31 = []
 
@@ -150,21 +159,18 @@ def main():
         ui_lang = st.selectbox("Language", ["Español", "English"])
         ui = UI_TEXT[ui_lang]
         if mode == "AI Generator 🤖":
-            topic = st.text_input(ui["topic"], "School")
+            topic = st.text_input(ui["topic"], "Shopping")
             col1, col2 = st.columns(2)
             with col1: level = st.selectbox(ui["level"], ["HSK 1", "HSK 2", "HSK 3"])
-            with col2: keywords = st.text_input(ui["keywords"], "老师, 同学")
+            with col2: keywords = st.text_input(ui["keywords"], "苹果, 多少钱")
             if st.button(ui["gen_btn"]):
                 with st.spinner(ui["ai_thinking"]):
                     st.session_state.data_v31 = call_real_ai(topic, level, keywords)
                     st.session_state.audio_v31 = ""
                     st.rerun()
         else:
-            if st.button("Load Dialogue I"):
-                st.session_state.data_v31 = [
-                    {"r": "美美", "t": [("今天", "jīntiān"), ("几号", "jǐhào")], "tr_es": "¿Qué fecha es hoy?", "tr_en": "..."},
-                    {"r": "大卫", "t": [("9月1号", "jiǔyuè yīhào")], "tr_es": "1 de sept.", "tr_en": "..."}
-                ]
+            if st.button("Load Demo"):
+                st.session_state.data_v31 = SAFE_DATA
                 st.session_state.audio_v31 = ""
                 st.rerun()
         st.divider()
@@ -176,8 +182,8 @@ def main():
 
     st.markdown('<div class="main-title">Reading Assistant</div>', unsafe_allow_html=True)
     if not st.session_state.audio_v31:
-        fname = f"v34_{int(time.time())}.mp3"
-        st.session_state.ts_v31 = asyncio.run(make_audio_safe(st.session_state.data_content if "data_content" in st.session_state else st.session_state.data_v31, fname))
+        fname = f"v35_{int(time.time())}.mp3"
+        st.session_state.ts_v31 = asyncio.run(make_audio_safe(st.session_state.data_v31, fname))
         st.session_state.audio_v31 = fname
     
     if os.path.exists(st.session_state.audio_v31):
@@ -188,15 +194,14 @@ def main():
     for idx, line in enumerate(st.session_state.data_v31):
         html += f'<div class="line-container" id="line-{idx}">'
         html += f'<div style="display:flex; flex:1;"><div class="role-label">{line["r"]}</div><div>'
-        for char, py in line["t"]:
+        for char, py in line.get("t", []):
             html += f'<ruby>{char}<rt>{py}</rt></ruby>' if show_pinyin and py else f'<ruby>{char}</ruby>'
         html += '</div></div>'
         if show_trans:
-            html += f'<div class="right-zone"><span style="font-size:0.8rem;">{line["tr_es"] if ui_lang=="Español" else line["tr_en"]}</span></div>'
+            html += f'<div class="right-zone"><span style="font-size:0.8rem;">{line.get("tr_es", "") if ui_lang=="Español" else line.get("tr_en", "")}</span></div>'
         html += '</div>'
     st.markdown(html + "</div>", unsafe_allow_html=True)
-    st.markdown('<div class="typing-section"><p style="color:#1E40AF; font-size:0.9em; font-weight:800; margin-bottom:5px;">✍️ Practice Section</p></div>', unsafe_allow_html=True)
-    st.text_input("inp", placeholder="...", label_visibility="collapsed")
+    st.text_input("inp", placeholder="Type practice here...", label_visibility="collapsed")
 
 if __name__ == "__main__":
     main()
