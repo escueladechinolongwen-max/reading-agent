@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="Long Wen Reading Pro", 
     page_icon="🐼", 
     layout="wide",
-    initial_sidebar_state="expanded" # 强制展开侧边栏
+    initial_sidebar_state="expanded" # 强制展开！
 )
 
 # --- 2. 界面双语语言包 ---
@@ -35,28 +35,41 @@ UI_TEXT = {
     }
 }
 
-# --- 3. 视觉设计 (CSS) ---
+# --- 3. 视觉设计 (CSS) - 救援模式 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
     
     .stApp { background-color: #FFFBF0; }
     
-    /* 1. 顶部布局：调整间距 */
+    /* 1. 顶部布局 */
     .block-container { 
         padding-top: 2rem !important; 
         padding-bottom: 2rem !important; 
         max-width: 1200px !important; 
     }
 
-    /* 2. 关键修复：不要隐藏 header，否则左上角的箭头 > 会消失！ */
-    /* header {visibility: hidden;}  <-- 这行代码被删除了 */
+    /* 2. 【关键修复】强制显示 Header 和 侧边栏开关 */
+    header[data-testid="stHeader"] {
+        background-color: transparent !important; /* 透明背景，不遮挡 */
+        visibility: visible !important; /* 必须可见 */
+        z-index: 100 !important;
+    }
     
-    /* 只隐藏右上角的汉堡菜单 (三个点) */
-    #MainMenu {visibility: hidden;}
-    [data-testid="stToolbar"] {visibility: hidden;}
-    [data-testid="stDecoration"] {display: none;} /* 隐藏顶部的彩条 */
-    footer {visibility: hidden;}
+    /* 3. 专门给左上角的箭头（展开按钮）加特效，确保你能看见它 */
+    [data-testid="collapsedControl"] {
+        display: block !important;
+        visibility: visible !important;
+        color: #BE185D !important; /* 玫红色箭头，非常醒目 */
+        font-weight: 900 !important;
+        transform: scale(1.2); /* 放大一点 */
+        z-index: 9999 !important; /* 放在最上层 */
+    }
+
+    /* 隐藏右上角的汉堡菜单 (如果你想隐藏的话，不想隐藏就把下面这行删掉) */
+    [data-testid="stToolbar"] { visibility: hidden; } 
+    [data-testid="stDecoration"] { display: none; }
+    footer { visibility: hidden; }
     
     /* 侧边栏美化 */
     section[data-testid="stSidebar"] {
@@ -64,7 +77,7 @@ st.markdown("""
         border-right: 1px solid #e2e8f0;
     }
 
-    /* 3. 自定义播放器区域 */
+    /* 4. 自定义播放器区域 */
     .audio-wrapper {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         background: #fff; padding: 10px; border-radius: 12px; margin-top: 0px; margin-bottom: 15px;
@@ -82,7 +95,7 @@ st.markdown("""
     .speed-btn:hover { background-color: #e0f2fe; color: #0284c7; border-color: #0284c7; }
     .speed-btn:active { transform: scale(0.95); }
 
-    /* 4. 阅读框：高度最大化 */
+    /* 5. 阅读框：高度最大化 */
     .reading-scroll-area {
         background-color: white; padding: 25px 30px; border-radius: 1.5rem;
         border: 2px solid #eee; overflow-y: auto; margin-bottom: 15px; 
@@ -90,7 +103,6 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(0,0,0,0.03);
     }
     
-    /* 根据屏幕高度智能调整阅读区高度 */
     @media (min-height: 901px) { .reading-scroll-area { height: 65vh; } }
     @media (max-height: 900px) { .reading-scroll-area { height: 55vh; } }
     @media (max-height: 700px) { .reading-scroll-area { height: 45vh; } }
@@ -182,7 +194,7 @@ def main():
     if "lesson_v23" not in st.session_state: st.session_state.lesson_v23 = ""
 
     # ==========================================
-    # 🔴 侧边栏 (Sidebar) - 设置区
+    # 🔴 侧边栏 (Sidebar)
     # ==========================================
     with st.sidebar:
         st.title("🐼 Settings")
@@ -221,7 +233,7 @@ def main():
     
     # 生成音频
     if st.session_state.lesson_v23 != lesson_key:
-        fname = f"audio_v25_3_{int(time.time())}.mp3"
+        fname = f"audio_v25_4_{int(time.time())}.mp3"
         with st.spinner(ui["audio_gen"]):
             asyncio.run(make_audio_v23(lesson_data, fname))
             st.session_state.audio_v23 = fname
