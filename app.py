@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="Long Wen Reading Pro", 
     page_icon="🐼", 
     layout="wide",
-    initial_sidebar_state="expanded" # 强制展开！
+    initial_sidebar_state="collapsed" # 先默认折叠，让你看到箭头
 )
 
 # --- 2. 界面双语语言包 ---
@@ -35,7 +35,7 @@ UI_TEXT = {
     }
 }
 
-# --- 3. 视觉设计 (CSS) - 救援模式 ---
+# --- 3. 视觉设计 (CSS) - 修复箭头消失之谜 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
@@ -44,30 +44,42 @@ st.markdown("""
     
     /* 1. 顶部布局 */
     .block-container { 
-        padding-top: 2rem !important; 
+        padding-top: 3rem !important; /* 给顶部留出更多空间，防止遮挡 */
         padding-bottom: 2rem !important; 
         max-width: 1200px !important; 
     }
 
-    /* 2. 【关键修复】强制显示 Header 和 侧边栏开关 */
+    /* 2. 【核心修复】恢复顶部 Header 的可见性 */
     header[data-testid="stHeader"] {
-        background-color: transparent !important; /* 透明背景，不遮挡 */
-        visibility: visible !important; /* 必须可见 */
+        background-color: transparent !important;
+        visibility: visible !important; /* 必须可见！ */
         z-index: 100 !important;
     }
     
-    /* 3. 专门给左上角的箭头（展开按钮）加特效，确保你能看见它 */
+    /* 不要隐藏 Toolbar！否则箭头会一起消失 */
+    /* [data-testid="stToolbar"] { visibility: hidden; }  <-- 这句删掉了 */
+    
+    /* 3. 尝试只隐藏右上角的 "..." 菜单 (如果不生效也无所谓，关键是箭头要出来) */
+    [data-testid="stToolbarActions"] {
+        opacity: 0.2; /* 先变淡，不完全隐藏，以防万一 */
+        transition: opacity 0.3s;
+    }
+    [data-testid="stToolbarActions"]:hover {
+        opacity: 1;
+    }
+
+    /* 4. 给左上角的箭头加超强特效 */
     [data-testid="collapsedControl"] {
         display: block !important;
         visibility: visible !important;
-        color: #BE185D !important; /* 玫红色箭头，非常醒目 */
-        font-weight: 900 !important;
-        transform: scale(1.2); /* 放大一点 */
-        z-index: 9999 !important; /* 放在最上层 */
+        color: #BE185D !important; /* 玫红色 */
+        background-color: rgba(255,255,255,0.8); /* 半透明背景，防止被底色吃掉 */
+        border-radius: 50%;
+        padding: 4px;
+        z-index: 999999 !important; /* 最高层级 */
     }
 
-    /* 隐藏右上角的汉堡菜单 (如果你想隐藏的话，不想隐藏就把下面这行删掉) */
-    [data-testid="stToolbar"] { visibility: hidden; } 
+    /* 隐藏顶部彩条和页脚 */
     [data-testid="stDecoration"] { display: none; }
     footer { visibility: hidden; }
     
@@ -77,7 +89,7 @@ st.markdown("""
         border-right: 1px solid #e2e8f0;
     }
 
-    /* 4. 自定义播放器区域 */
+    /* 5. 自定义播放器区域 */
     .audio-wrapper {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         background: #fff; padding: 10px; border-radius: 12px; margin-top: 0px; margin-bottom: 15px;
@@ -95,7 +107,7 @@ st.markdown("""
     .speed-btn:hover { background-color: #e0f2fe; color: #0284c7; border-color: #0284c7; }
     .speed-btn:active { transform: scale(0.95); }
 
-    /* 5. 阅读框：高度最大化 */
+    /* 6. 阅读框 */
     .reading-scroll-area {
         background-color: white; padding: 25px 30px; border-radius: 1.5rem;
         border: 2px solid #eee; overflow-y: auto; margin-bottom: 15px; 
@@ -233,7 +245,7 @@ def main():
     
     # 生成音频
     if st.session_state.lesson_v23 != lesson_key:
-        fname = f"audio_v25_4_{int(time.time())}.mp3"
+        fname = f"audio_v25_5_{int(time.time())}.mp3"
         with st.spinner(ui["audio_gen"]):
             asyncio.run(make_audio_v23(lesson_data, fname))
             st.session_state.audio_v23 = fname
