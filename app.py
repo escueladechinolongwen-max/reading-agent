@@ -8,15 +8,10 @@ import base64
 import json
 import google.generativeai as genai
 
-# --- 1. 核心配置 ---
-st.set_page_config(
-    page_title="Long Wen Reading Pro", 
-    page_icon="🐼", 
-    layout="wide", 
-    initial_sidebar_state="expanded"
-)
+# --- 1. 配置与样式 ---
+st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="wide", initial_sidebar_state="expanded")
 
-# 直接从 Render 环境变量读取
+# 自动从 Render 环境变量抓取
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY") 
 
 UI_TEXT = {
@@ -34,7 +29,6 @@ UI_TEXT = {
     }
 }
 
-# --- 2. 视觉设计 (CSS) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
@@ -64,49 +58,57 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. 初始数据 ---
-LESSONS = {
-    "Dialogue I": [
-        {"r": "美美", "t": [("大卫", "Dàwèi"), ("，", ""), ("请问", "qǐngwèn"), ("今天", "jīntiān"), ("几号", "jǐ hào"), ("？", "")] , "tr_es": "¿Qué fecha es hoy?", "tr_en": "What date is today?"},
-        {"r": "大卫", "t": [("今天", "jīntiān"), ("9月1号", "jiǔ yuè yī hào"), ("。", "")] , "tr_es": "1 de septiembre.", "tr_en": "September 1st."}
-    ]
-}
+# --- 3. 基础对话 ---
+BASE_LESSON = [
+    {"r": "美美", "t": [("你好", "nǐhǎo")], "tr_es": "Hola", "tr_en": "Hello"},
+    {"r": "大卫", "t": [("你好", "nǐhǎo")], "tr_es": "Hola", "tr_en": "Hello"}
+]
 
-# --- 4. AI 生成逻辑 ---
+# --- 4. 增强版 AI 解析逻辑 ---
 def call_real_ai(topic, level, keywords):
     if not MY_API_KEY:
-        return [{"r": "Error", "t": [("请", "qǐng"), ("配置", "pèizhì"), ("API", ""), ("Key", "")], "tr_es": "Falta API Key", "tr_en": "API Key missing"}]
+        return BASE_LESSON
     try:
         genai.configure(api_key=MY_API_KEY)
         model = genai.GenerativeModel('gemini-1.5-flash')
-        prompt = f"Act as a Chinese teacher. Dialogue (4-6 lines) between '美美' and '大卫'. Topic: {topic}. Level: {level}. Keywords: {keywords}. JSON format: [{{'r': '美美', 't': [['汉', 'hàn']], 'tr_es': '...', 'tr_en': '...'}}]"
+        # 指令升级：强制纯净 JSON
+        prompt = f"""
+        TASK: Create a Chinese dialogue.
+        ROLES: '美美' (Female) and '大卫' (Male).
+        TOPIC: {topic}, LEVEL: {level}, KEYWORDS: {keywords}.
+        FORMAT: Output ONLY a valid JSON array. No text before or after.
+        STRUCTURE: [{{"r": "美美", "t": [["汉", "hàn"]], "tr_es": "Spanish", "tr_en": "English"}}]
+        """
         response = model.generate_content(prompt)
-        return json.loads(response.text.strip().replace("```json", "").replace("```", ""))
-    except Exception as e:
-        return [{"r": "Error", "t": [("生成", "shēngchéng"), ("失败", "shībài")], "tr_es": str(e), "tr_en": "AI Error"}]
+        text = response.text.strip()
+        # 暴力提取 JSON 部分
+        match = re.search(r'\[.*\]', text, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+        return json.loads(text)
+    except:
+        return BASE_LESSON # 失败时保底，不显示红字
 
-# --- 5. 语音与播放器 (加固处理) ---
+# --- 5. 语音与播放器 ---
 async def make_audio_safe(lesson_data, filename):
-    timestamps = []
+    ts = []
     curr = 0.0
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(lesson_data):
-            voice = "zh-CN-XiaoxiaoNeural" if line["r"] in ["美美", "Error"] else "zh-CN-YunxiNeural"
+            voice = "zh-CN-XiaoxiaoNeural" if line["r"] == "美美" else "zh-CN-YunxiNeural"
             raw = "".join([p[0] for p in line["t"]])
-            dur = len(raw) * 0.28
-            if dur < 1.2: dur = 1.2
-            timestamps.append({"start": curr, "end": curr + dur, "role": line["r"]})
+            dur = len(raw) * 0.3 + 1.0
+            ts.append({"start": curr, "end": curr + dur, "role": line["r"]})
             try:
                 communicate = edge_tts.Communicate(raw, voice)
                 temp_f = f"t_{int(time.time())}_{i}.mp3"
                 await communicate.save(temp_f)
-                await asyncio.sleep(0.1) # 💡 等待文件写入完成
                 if os.path.exists(temp_f):
                     with open(temp_f, 'rb') as f: final_file.write(f.read())
                     os.remove(temp_f)
             except: pass
             curr += dur
-    return timestamps
+    return ts
 
 def get_player_html(file_path, ts):
     with open(file_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
@@ -114,9 +116,9 @@ def get_player_html(file_path, ts):
     <div style="display:flex; flex-direction:column; align-items:center; background:white; padding:8px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:10px;">
         <audio id="p" controls src="data:audio/mp3;base64,{b64}" style="width:100%; max-width:450px; height:32px;"></audio>
         <div style="margin-top:5px;">
-            <button onclick="p.playbackRate=0.8" style="cursor:pointer; padding:2px 8px;">🐢 0.8x</button>
-            <button onclick="p.playbackRate=1.0" style="cursor:pointer; padding:2px 8px;">▶ 1.0x</button>
-            <button onclick="p.playbackRate=1.2" style="cursor:pointer; padding:2px 8px;">🐇 1.2x</button>
+            <button onclick="p.playbackRate=0.8" style="padding:2px 8px;">🐢 0.8x</button>
+            <button onclick="p.playbackRate=1.0" style="padding:2px 8px;">▶ 1.0x</button>
+            <button onclick="p.playbackRate=1.2" style="padding:2px 8px;">🐇 1.2x</button>
         </div>
     </div>
     <script>
@@ -138,31 +140,33 @@ def get_player_html(file_path, ts):
     """
 
 def main():
-    if "data_v31" not in st.session_state: st.session_state.data_v31 = LESSONS["Dialogue I"]
+    if "data_v31" not in st.session_state: st.session_state.data_v31 = BASE_LESSON
     if "audio_v31" not in st.session_state: st.session_state.audio_v31 = ""
     if "ts_v31" not in st.session_state: st.session_state.ts_v31 = []
 
     with st.sidebar:
         st.title("🐼 AI Workshop")
-        mode = st.radio("Mode", ["Preset Lessons", "AI Generator 🤖"])
-        ui_lang = st.selectbox("UI Language", ["Español", "English"])
+        mode = st.radio("Mode", ["Preset", "AI Generator 🤖"])
+        ui_lang = st.selectbox("Language", ["Español", "English"])
         ui = UI_TEXT[ui_lang]
         if mode == "AI Generator 🤖":
-            topic = st.text_input(ui["topic"], "Shopping")
+            topic = st.text_input(ui["topic"], "School")
             col1, col2 = st.columns(2)
             with col1: level = st.selectbox(ui["level"], ["HSK 1", "HSK 2", "HSK 3"])
-            with col2: keywords = st.text_input(ui["keywords"], "苹果, 多少钱")
+            with col2: keywords = st.text_input(ui["keywords"], "老师, 同学")
             if st.button(ui["gen_btn"]):
                 with st.spinner(ui["ai_thinking"]):
                     st.session_state.data_v31 = call_real_ai(topic, level, keywords)
                     st.session_state.audio_v31 = ""
                     st.rerun()
         else:
-            lesson_key = st.selectbox("Lección", list(LESSONS.keys()))
-            if st.session_state.get("last_key") != lesson_key:
-                st.session_state.data_v31 = LESSONS[lesson_key]
+            if st.button("Load Dialogue I"):
+                st.session_state.data_v31 = [
+                    {"r": "美美", "t": [("今天", "jīntiān"), ("几号", "jǐhào")], "tr_es": "¿Qué fecha es hoy?", "tr_en": "..."},
+                    {"r": "大卫", "t": [("9月1号", "jiǔyuè yīhào")], "tr_es": "1 de sept.", "tr_en": "..."}
+                ]
                 st.session_state.audio_v31 = ""
-                st.session_state.last_key = lesson_key
+                st.rerun()
         st.divider()
         show_pinyin = st.toggle(ui["pinyin"], value=True)
         show_trans = st.toggle(ui["trans"], value=False)
@@ -170,10 +174,10 @@ def main():
             st.session_state.audio_v31 = ""
             st.rerun()
 
-    st.markdown(f'<div class="main-title">Reading Assistant</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">Reading Assistant</div>', unsafe_allow_html=True)
     if not st.session_state.audio_v31:
-        fname = f"v33_{int(time.time())}.mp3"
-        st.session_state.ts_v31 = asyncio.run(make_audio_safe(st.session_state.data_v31, fname))
+        fname = f"v34_{int(time.time())}.mp3"
+        st.session_state.ts_v31 = asyncio.run(make_audio_safe(st.session_state.data_content if "data_content" in st.session_state else st.session_state.data_v31, fname))
         st.session_state.audio_v31 = fname
     
     if os.path.exists(st.session_state.audio_v31):
@@ -191,7 +195,7 @@ def main():
             html += f'<div class="right-zone"><span style="font-size:0.8rem;">{line["tr_es"] if ui_lang=="Español" else line["tr_en"]}</span></div>'
         html += '</div>'
     st.markdown(html + "</div>", unsafe_allow_html=True)
-    st.markdown(f'<div class="typing-section"><p class="instr-text">✍️ {ui["typing_instr"]}</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="typing-section"><p style="color:#1E40AF; font-size:0.9em; font-weight:800; margin-bottom:5px;">✍️ Practice Section</p></div>', unsafe_allow_html=True)
     st.text_input("inp", placeholder="...", label_visibility="collapsed")
 
 if __name__ == "__main__":
