@@ -13,21 +13,25 @@ st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY")
 TARGET_MODEL = 'models/gemini-2.5-flash'
 
-# 🌍 语言包
+# 🌍 语言包 (已补全丢失的 Key)
 UI_TEXT = {
     "Español": { 
         "instr": "✍️ Escribe aquí para practicar...", 
         "gen_btn": "Generar Lección ✨", 
         "topic": "Tema", "level": "Nivel", "keywords": "Palabras",
         "loading": "Creando lección...",
-        "show_py": "Mostrar Pinyin", "show_tr": "Mostrar Traducción"
+        "show_py": "Mostrar Pinyin", 
+        "show_tr": "Mostrar Traducción",
+        "refresh": "Regenerar Audio"  # 👈 补回了这个
     },
     "English": { 
         "instr": "✍️ Type here to practice...", 
         "gen_btn": "Generate Lesson ✨", 
         "topic": "Topic", "level": "Level", "keywords": "Keywords",
         "loading": "Creating lesson...",
-        "show_py": "Show Pinyin", "show_tr": "Show Translation"
+        "show_py": "Show Pinyin", 
+        "show_tr": "Show Translation",
+        "refresh": "Regenerate Audio" # 👈 补回了这个
     }
 }
 
@@ -45,7 +49,7 @@ st.markdown("""
     /* 调整顶部间距 */
     .block-container {
         padding-top: 1rem !important;
-        padding-bottom: 100px !important; /* 给底部打字框留位置 */
+        padding-bottom: 120px !important; /* 给底部打字框留足位置 */
         max-width: 95% !important;
         height: 100vh;
         overflow-y: auto !important; /* 允许主区域滚动 */
@@ -226,7 +230,7 @@ def main():
                     st.rerun()
         
         st.divider()
-        # ✨ 开关回归
+        # ✨ 开关功能
         show_pinyin = st.toggle(ui["show_py"], value=True)
         show_trans = st.toggle(ui["show_tr"], value=True)
         
@@ -250,17 +254,15 @@ def main():
         if not show_pinyin: container_class += " hide-pinyin"
         if not show_trans: container_class += " hide-trans"
 
-        # 拼接 HTML (无缩进，防止代码裸奔)
+        # 拼接 HTML
         html_str = f'<div class="{container_class}">'
         for idx, line in enumerate(st.session_state.current_data):
             trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
             
-            # 汉字拼音部分
             hanzi_html = ""
             for char, py in line.get("t", []):
                 hanzi_html += f'<ruby>{char}<rt>{py}</rt></ruby>'
             
-            # 组合一行
             html_str += f'<div class="row-container" id="row-{idx}"><div class="left-box">{trans}</div><div class="right-box"><span class="role-tag">{line["r"]}</span>{hanzi_html}</div></div>'
         
         html_str += '</div>'
@@ -268,7 +270,7 @@ def main():
         # 渲染主内容
         st.markdown(html_str, unsafe_allow_html=True)
         
-        # 底部固定打字框 (使用 JS 移动到 .fixed-bottom)
+        # 底部固定打字框
         st.markdown(f'<div class="fixed-bottom"><div style="color:#3b82f6; font-weight:bold; margin-bottom:5px;">{ui["instr"]}</div></div>', unsafe_allow_html=True)
         st.text_input("user_input", label_visibility="collapsed", placeholder="...")
         
