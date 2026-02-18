@@ -35,7 +35,7 @@ UI_TEXT = {
     }
 }
 
-# --- 2. 🎨 CSS 完美对齐版 ---
+# --- 2. 🎨 CSS 奶油风 + 完美对齐 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Nunito:wght@700&display=swap');
@@ -46,21 +46,19 @@ st.markdown("""
         overflow: hidden !important;
     }
     
-    /* 1. 修复顶部显示不全的问题 */
     .block-container {
-        padding-top: 60px !important; /* 增加顶部空间 */
-        padding-bottom: 120px !important;
-        max-width: 1000px !important; /* 统一最大宽度 */
+        padding-top: 60px !important;
+        padding-bottom: 140px !important;
+        max-width: 1000px !important;
     }
 
-    /* 标题样式 */
     .main-title {
         text-align: center; color: #5D5650; font-weight: 800; 
         font-size: 2rem; letter-spacing: 1px; margin-bottom: 30px;
         text-shadow: 2px 2px 0px #FFEaa7;
     }
 
-    /* 2. ☁️ 云朵卡片容器 (阅读区) */
+    /* 阅读卡片 */
     .scroll-container {
         background: #FFFFFF;
         border-radius: 25px;
@@ -70,78 +68,54 @@ st.markdown("""
         height: 60vh; 
         overflow-y: auto;
         display: flex; flex-direction: column; gap: 15px;
-        
-        /* 核心对齐：宽度锁定 */
-        width: 100%;
-        max-width: 900px;
-        margin: 0 auto; /* 居中 */
+        width: 100%; max-width: 900px; margin: 0 auto;
     }
 
-    /* 行布局 */
     .cute-row {
-        display: flex; align-items: flex-start;
-        padding: 15px;
-        border-bottom: 2px dashed #FFF0D4;
-        transition: all 0.3s ease;
-        border-radius: 12px;
+        display: flex; align-items: flex-start; padding: 15px;
+        border-bottom: 2px dashed #FFF0D4; transition: all 0.3s ease; border-radius: 12px;
     }
     .cute-row:hover { background-color: #FFFCF5; }
 
-    /* 头像 */
     .cute-avatar {
-        background-color: #FFD166; color: #fff;
-        width: 40px; height: 40px; border-radius: 50%;
+        background-color: #FFD166; color: #fff; width: 40px; height: 40px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
         font-size: 12px; font-weight: bold; margin-right: 15px; flex-shrink: 0;
         box-shadow: 2px 2px 0px #F4B860;
     }
     .avatar-dawei { background-color: #6FCF97; box-shadow: 2px 2px 0px #27AE60; }
 
-    /* 汉字区 */
-    .cute-chinese {
-        flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end;
-    }
-    ruby { 
-        font-size: 24px; font-weight: 700; color: #4A4A4A; 
-        ruby-position: under; line-height: 2.0; 
-    }
-    rt { 
-        font-size: 12px; color: #FF8BA7; font-weight: 600; font-family: sans-serif;
-    }
-
-    /* 翻译区 */
-    .cute-trans {
-        width: 35%; padding-left: 20px;
-        color: #AAB7B8; font-size: 0.9rem; font-style: italic;
-        border-left: 2px solid #F0F3F4;
-        display: flex; align-items: center; line-height: 1.4;
-    }
-
-    /* 3. 🎹 底部固定打字条 (与上面的卡片对齐) */
-    .fixed-footer {
-        position: fixed; bottom: 20px; left: 50%; 
-        transform: translateX(-50%);
-        
-        /* 核心对齐：宽度与上面一致 */
-        width: 90%; 
-        max-width: 900px; /* 这里的 900px 和上面的 max-width 对应 */
-        
-        background: #FFFFFF;
-        padding: 15px 25px;
-        border-radius: 50px;
-        box-shadow: 0 10px 25px rgba(255, 159, 28, 0.15);
-        border: 2px solid #FFE5B4;
-        display: flex; flex-direction: column; align-items: center;
-        z-index: 9999;
-    }
+    /* 汉字区：增加行高，防止标点拥挤 */
+    .cute-chinese { flex: 1; display: flex; flex-wrap: wrap; gap: 4px; align-items: flex-end; }
     
+    ruby { font-size: 24px; font-weight: 700; color: #4A4A4A; ruby-position: under; line-height: 2.0; }
+    rt { font-size: 12px; color: #FF8BA7; font-weight: 600; font-family: sans-serif; }
+
+    .cute-trans {
+        width: 35%; padding-left: 20px; color: #AAB7B8; font-size: 0.9rem; font-style: italic;
+        border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4;
+    }
+
+    /* 底部输入框 (单框修复) */
+    div[data-testid="stTextInput"] {
+        position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+        width: 90%; max-width: 900px; z-index: 99999;
+        background-color: #FFFFFF; padding: 10px 20px; border-radius: 50px;
+        box-shadow: 0 10px 25px rgba(255, 159, 28, 0.2); border: 3px solid #FFE5B4;
+    }
+    div[data-testid="stTextInput"] input { border: none; background-color: transparent; font-size: 1.1rem; color: #5D5650; }
+    div[data-testid="stTextInput"]:focus-within {
+        border-color: #FFD166; box-shadow: 0 10px 30px rgba(255, 159, 28, 0.3);
+        transform: translateX(-50%) translateY(-2px); transition: all 0.3s ease;
+    }
+
     .hide-pinyin rt { display: none !important; }
     .hide-trans .cute-trans { opacity: 0; }
     .active-highlight { background-color: #FFF8E1 !important; border-radius: 12px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. AI 逻辑 ---
+# --- 3. AI 逻辑 (重点修改：强制标点) ---
 def call_ai(topic, level, keywords):
     if not MY_API_KEY: return None
     try:
@@ -149,11 +123,21 @@ def call_ai(topic, level, keywords):
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
 
+        # 🔴 核心修改：明确要求标点符号，并给出带标点的示例
         prompt = f"""
         Act as a JSON API. Create a Chinese dialogue (4-6 lines) between '美美' (Female) and '大卫' (Male).
         Topic: {topic}. Level: {level}. Keywords: {keywords}.
-        RULES: Include standard punctuation. Output JSON ARRAY only.
-        Format: [{{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"]], "tr_es": "Hola", "tr_en": "Hi"}}]
+        
+        CRITICAL RULES:
+        1. YOU MUST INCLUDE PUNCTUATION (，。？！) in the text list.
+        2. Treat punctuation as a character with empty pinyin "".
+        3. Output JSON ARRAY only.
+        
+        Format Example: 
+        [
+            {{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}},
+            {{"r": "大卫", "t": [["你", "nǐ"], ["好", "hǎo"], ["，", ""], ["美", "měi"], ["美", "měi"], ["。", ""]], "tr_es": "Hola, Meimei.", "tr_en": "Hello, Meimei."}}
+        ]
         """
         response = model.generate_content(prompt, safety_settings=safety)
         text = response.text.strip().replace("```json", "").replace("```", "")
@@ -213,6 +197,7 @@ def main():
     if "current_data" not in st.session_state: st.session_state.current_data = None
     if "audio_file" not in st.session_state: st.session_state.audio_file = ""
 
+    # 侧边栏
     with st.sidebar:
         st.header("🐼 Settings")
         ui_lang = st.selectbox("Language", ["Español", "English"])
@@ -262,6 +247,7 @@ def main():
             
             hanzi_html = ""
             for char, py in line.get("t", []):
+                # 标点符号拼音为空，rt标签会自动隐藏或不占位
                 hanzi_html += f'<ruby>{char}<rt>{py}</rt></ruby>'
             
             html_str += f'<div class="cute-row" id="row-{idx}"><div class="{avatar_class}">{line["r"][0]}</div><div class="cute-chinese">{hanzi_html}</div><div class="cute-trans">{trans}</div></div>'
@@ -269,10 +255,8 @@ def main():
         html_str += '</div>'
         st.markdown(html_str, unsafe_allow_html=True)
         
-        st.markdown(f'<div class="fixed-footer"><div style="color:#FF9F1C; font-weight:bold; font-size:0.9rem; margin-bottom:5px;">{ui["instr"]}</div></div>', unsafe_allow_html=True)
-        st.text_input("user_input", label_visibility="collapsed", placeholder="...")
-        
-        st.markdown("<script>const inputEl = window.parent.document.querySelector('.stTextInput');const footerEl = window.parent.document.querySelector('.fixed-footer');if(inputEl && footerEl) { footerEl.appendChild(inputEl); }</script>", unsafe_allow_html=True)
+        # 底部输入框（placeholder 设置为指令文案）
+        st.text_input("user_input", label_visibility="collapsed", placeholder=ui["instr"])
 
     else:
         st.info("👈 Please enter settings and click Generate")
