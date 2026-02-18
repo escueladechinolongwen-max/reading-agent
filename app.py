@@ -12,7 +12,6 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="wide", initial_sidebar_state="expanded")
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
-# --- CSS 样式 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
@@ -23,20 +22,49 @@ st.markdown("""
     .role-label { min-width: 60px; font-weight: 900; color: #BE185D; }
     ruby { ruby-position: under; padding: 0 3px; font-size: 26px; font-weight: 900; color: #333; }
     rt { font-size: 13px; color: #666; font-weight: 700; }
-    .version-tag { font-size: 0.8rem; color: #aaa; position: fixed; bottom: 10px; right: 10px; }
+    .debug-box { font-size: 0.8rem; color: #666; background: #f0f0f0; padding: 10px; border-radius: 5px; margin-bottom: 10px; word-break: break-all; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. AI 调用 (尝试 1.5 Flash) ---
-def call_ai(topic, level, keywords):
-    if not MY_API_KEY:
-        st.error("❌ Key Missing")
-        return None
+# --- 2. 自动扫描可用模型 ---
+def get_available_model():
+    if not MY_API_KEY: return None, "No Key"
     try:
         genai.configure(api_key=MY_API_KEY)
+        all_models = []
+        # 扫描所有模型
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                all_models.append(m.name)
         
-        # 💡 这里使用 1.5 Flash，如果库版本更新了，它一定能工作
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # 智能选择优先级
+        preferred_order = [
+            'models/gemini-2.0-flash-exp',
+            'models/gemini-1.5-flash',
+            'models/gemini-1.5-flash-latest',
+            'models/gemini-1.5-flash-001',
+            'models/gemini-pro'
+        ]
+        
+        selected_model = None
+        for pref in preferred_order:
+            if pref in all_models:
+                selected_model = pref
+                break
+        
+        # 如果首选都没找到，就用列表里的第一个
+        if not selected_model and all_models:
+            selected_model = all_models[0]
+            
+        return selected_model, all_models
+    except Exception as e:
+        return None, str(e)
+
+# --- 3. AI 调用 ---
+def call_ai(model_name, topic, level, keywords):
+    try:
+        genai.configure(api_key=MY_API_KEY)
+        model = genai.GenerativeModel(model_name)
         
         safety = {
             HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -46,9 +74,9 @@ def call_ai(topic, level, keywords):
         }
 
         prompt = f"""
-        Act as a Chinese teacher. Create a dialogue (4-6 sentences) between '美美' (Female) and '大卫' (Male).
+        Act as a JSON API. Create a Chinese dialogue (4-6 sentences) between '美美' and '大卫'.
         Topic: {topic}. Level: {level}. Keywords: {keywords}.
-        Output JSON: [{{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"]], "tr_es": "Hola", "tr_en": "Hi"}}]
+        Output JSON ONLY: [{{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"]], "tr_es": "Hola", "tr_en": "Hi"}}]
         """
         
         response = model.generate_content(prompt, safety_settings=safety)
@@ -56,11 +84,10 @@ def call_ai(topic, level, keywords):
         return json.loads(text)
 
     except Exception as e:
-        # 显示详细错误
-        st.error(f"💥 Error: {str(e)}")
+        st.error(f"💥 Error using model {model_name}: {str(e)}")
         return None
 
-# --- 3. 语音合成 ---
+# --- 4. 语音合成 ---
 async def make_audio(data, filename):
     ts = []
     curr = 0.0
@@ -83,33 +110,35 @@ async def make_audio(data, filename):
 def main():
     st.markdown('<div class="main-title">Reading Assistant Pro</div>', unsafe_allow_html=True)
     
-    # 🔍 版本检测器 (显示在侧边栏)
-    lib_version = genai.__version__
+    # 🕵️‍♂️ 启动时自动扫描
+    best_model, debug_info = get_available_model()
     
     with st.sidebar:
         st.title("🐼 AI Settings")
         
-        # 显示当前使用的库版本
-        if lib_version >= "0.7.0":
-            st.success(f"✅ Lib Version: {lib_version} (Good)")
+        # 显示诊断信息
+        if best_model:
+            st.success(f"✅ 锁定模型: {best_model}")
+            with st.expander("查看所有可用模型"):
+                st.write(debug_info)
         else:
-            st.error(f"❌ Lib Version: {lib_version} (Too Old!)")
-            st.caption("Please update requirements.txt to 0.8.3")
-
-        if MY_API_KEY: st.success("✅ API Key Loaded")
-        else: st.error("❌ Key Missing")
+            st.error("❌ 无法获取模型列表")
+            st.code(debug_info)
             
         topic = st.text_input("Topic", "Shopping")
         level = st.selectbox("Level", ["HSK 1", "HSK 2", "HSK 3"])
         keys = st.text_input("Keywords", "苹果, 多少钱")
         
         if st.button("Generate Lesson ✨"):
-            with st.spinner("AI is thinking..."):
-                res = call_ai(topic, level, keys)
-                if res:
-                    st.session_state.current_data = res
-                    st.session_state.audio_file = ""
-                    st.rerun()
+            if not best_model:
+                st.error("No working model found.")
+            else:
+                with st.spinner(f"Generating with {best_model}..."):
+                    res = call_ai(best_model, topic, level, keys)
+                    if res:
+                        st.session_state.current_data = res
+                        st.session_state.audio_file = ""
+                        st.rerun()
 
     if "current_data" in st.session_state:
         if not st.session_state.get("audio_file"):
