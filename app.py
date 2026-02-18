@@ -13,7 +13,7 @@ st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY")
 TARGET_MODEL = 'models/gemini-2.5-flash'
 
-# 🌍 语言包 (修复了 KeyError)
+# 🌍 语言包
 UI_TEXT = {
     "Español": { 
         "instr": "✍️ Escribe aquí...", 
@@ -35,122 +35,109 @@ UI_TEXT = {
     }
 }
 
-# --- 2. 🎨 CSS 奶油风设计 (Creamy Style) ---
+# --- 2. 🎨 CSS 完美对齐版 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Nunito:wght@700&display=swap');
     
-    /* 全局奶油色背景 */
     html, body, [data-testid="stAppViewContainer"] {
-        background-color: #FFFBF0 !important; /* 暖白奶油色 */
+        background-color: #FFFBF0 !important;
         font-family: 'Nunito', 'Noto Sans SC', sans-serif;
         overflow: hidden !important;
     }
     
-    /* 调整布局容器 */
+    /* 1. 修复顶部显示不全的问题 */
     .block-container {
-        padding-top: 20px !important;
+        padding-top: 60px !important; /* 增加顶部空间 */
         padding-bottom: 120px !important;
-        max-width: 950px !important; /* 限制宽度，更精致 */
+        max-width: 1000px !important; /* 统一最大宽度 */
     }
 
     /* 标题样式 */
     .main-title {
         text-align: center; color: #5D5650; font-weight: 800; 
-        font-size: 1.6rem; letter-spacing: 1px; margin-bottom: 20px;
+        font-size: 2rem; letter-spacing: 1px; margin-bottom: 30px;
         text-shadow: 2px 2px 0px #FFEaa7;
     }
 
-    /* ☁️ 云朵卡片容器 */
+    /* 2. ☁️ 云朵卡片容器 (阅读区) */
     .scroll-container {
         background: #FFFFFF;
-        border-radius: 25px; /* 大圆角 */
+        border-radius: 25px;
         padding: 30px;
-        box-shadow: 0 8px 20px rgba(235, 212, 180, 0.4); /* 柔和阴影 */
+        box-shadow: 0 8px 20px rgba(235, 212, 180, 0.4);
         border: 2px solid #FFF5E0;
-        height: 65vh; /* 固定高度 */
+        height: 60vh; 
         overflow-y: auto;
         display: flex; flex-direction: column; gap: 15px;
+        
+        /* 核心对齐：宽度锁定 */
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto; /* 居中 */
     }
 
-    /* 每一行的布局：左汉字 | 右翻译 */
+    /* 行布局 */
     .cute-row {
-        display: flex;
-        align-items: flex-start;
+        display: flex; align-items: flex-start;
         padding: 15px;
-        border-bottom: 2px dashed #FFF0D4; /* 虚线分割 */
+        border-bottom: 2px dashed #FFF0D4;
         transition: all 0.3s ease;
         border-radius: 12px;
     }
-    
     .cute-row:hover { background-color: #FFFCF5; }
 
-    /* 角色头像 (圆圆的) */
+    /* 头像 */
     .cute-avatar {
-        background-color: #FFD166; /* 马卡龙黄 */
-        color: #fff;
-        width: 40px; height: 40px;
-        border-radius: 50%;
+        background-color: #FFD166; color: #fff;
+        width: 40px; height: 40px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-size: 12px; font-weight: bold;
-        margin-right: 15px; flex-shrink: 0;
+        font-size: 12px; font-weight: bold; margin-right: 15px; flex-shrink: 0;
         box-shadow: 2px 2px 0px #F4B860;
     }
-    .avatar-dawei { background-color: #6FCF97; box-shadow: 2px 2px 0px #27AE60; } /* 大卫用绿色 */
+    .avatar-dawei { background-color: #6FCF97; box-shadow: 2px 2px 0px #27AE60; }
 
-    /* 🇨🇳 汉字区域 (左侧，占比大) */
+    /* 汉字区 */
     .cute-chinese {
-        flex: 1; /* 占据剩余空间 */
-        display: flex; flex-wrap: wrap; gap: 6px;
-        align-items: flex-end;
+        flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end;
     }
-
-    /* 字体调整：精致小巧 */
     ruby { 
-        font-size: 24px; /* 字体改小了 */
-        font-weight: 700; color: #4A4A4A; 
+        font-size: 24px; font-weight: 700; color: #4A4A4A; 
         ruby-position: under; line-height: 2.0; 
     }
     rt { 
-        font-size: 12px; color: #FF8BA7; /* 珊瑚粉拼音 */
-        font-weight: 600; font-family: sans-serif;
+        font-size: 12px; color: #FF8BA7; font-weight: 600; font-family: sans-serif;
     }
 
-    /* 🇪🇸 翻译区域 (右侧，淡雅) */
+    /* 翻译区 */
     .cute-trans {
-        width: 35%; /* 放在右边 */
-        padding-left: 20px;
-        color: #AAB7B8; /* 浅灰色，不抢戏 */
-        font-size: 0.9rem;
-        font-style: italic;
+        width: 35%; padding-left: 20px;
+        color: #AAB7B8; font-size: 0.9rem; font-style: italic;
         border-left: 2px solid #F0F3F4;
-        display: flex; align-items: center;
-        line-height: 1.4;
+        display: flex; align-items: center; line-height: 1.4;
     }
 
-    /* 🎹 底部固定打字条 */
+    /* 3. 🎹 底部固定打字条 (与上面的卡片对齐) */
     .fixed-footer {
         position: fixed; bottom: 20px; left: 50%; 
         transform: translateX(-50%);
-        width: 90%; max-width: 800px;
+        
+        /* 核心对齐：宽度与上面一致 */
+        width: 90%; 
+        max-width: 900px; /* 这里的 900px 和上面的 max-width 对应 */
+        
         background: #FFFFFF;
         padding: 15px 25px;
-        border-radius: 50px; /* 胶囊形状 */
+        border-radius: 50px;
         box-shadow: 0 10px 25px rgba(255, 159, 28, 0.15);
         border: 2px solid #FFE5B4;
         display: flex; flex-direction: column; align-items: center;
         z-index: 9999;
     }
     
-    /* 控制开关 */
     .hide-pinyin rt { display: none !important; }
     .hide-trans .cute-trans { opacity: 0; }
-    
-    /* 高亮激活 */
-    .active-highlight { 
-        background-color: #FFF8E1 !important; 
-        border-radius: 12px; 
-    }
+    .active-highlight { background-color: #FFF8E1 !important; border-radius: 12px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -226,7 +213,6 @@ def main():
     if "current_data" not in st.session_state: st.session_state.current_data = None
     if "audio_file" not in st.session_state: st.session_state.audio_file = ""
 
-    # 侧边栏
     with st.sidebar:
         st.header("🐼 Settings")
         ui_lang = st.selectbox("Language", ["Español", "English"])
@@ -263,36 +249,29 @@ def main():
         if os.path.exists(st.session_state.audio_file):
             st.components.v1.html(get_player_html(st.session_state.audio_file, st.session_state.ts), height=60)
 
-        # 动态 Class
         container_class = ""
         if not show_pinyin: container_class += " hide-pinyin"
         if not show_trans: container_class += " hide-trans"
 
-        # 拼接 HTML (单行模式，防止 bug)
         html_str = f'<div class="scroll-container {container_class}">'
         for idx, line in enumerate(st.session_state.current_data):
             trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
             
-            # 头像颜色区分
             avatar_class = "cute-avatar"
             if line["r"] == "大卫": avatar_class += " avatar-dawei"
             
-            # 汉字拼音
             hanzi_html = ""
             for char, py in line.get("t", []):
                 hanzi_html += f'<ruby>{char}<rt>{py}</rt></ruby>'
             
-            # 单行拼接
             html_str += f'<div class="cute-row" id="row-{idx}"><div class="{avatar_class}">{line["r"][0]}</div><div class="cute-chinese">{hanzi_html}</div><div class="cute-trans">{trans}</div></div>'
         
         html_str += '</div>'
         st.markdown(html_str, unsafe_allow_html=True)
         
-        # 底部胶囊输入框
         st.markdown(f'<div class="fixed-footer"><div style="color:#FF9F1C; font-weight:bold; font-size:0.9rem; margin-bottom:5px;">{ui["instr"]}</div></div>', unsafe_allow_html=True)
         st.text_input("user_input", label_visibility="collapsed", placeholder="...")
         
-        # JS 搬运输入框
         st.markdown("<script>const inputEl = window.parent.document.querySelector('.stTextInput');const footerEl = window.parent.document.querySelector('.fixed-footer');if(inputEl && footerEl) { footerEl.appendChild(inputEl); }</script>", unsafe_allow_html=True)
 
     else:
