@@ -35,7 +35,7 @@ UI_TEXT = {
     }
 }
 
-# --- 2. 🎨 CSS 奶油风 + 完美对齐 ---
+# --- 2. 🎨 CSS 完美修复版 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Nunito:wght@700&display=swap');
@@ -48,7 +48,7 @@ st.markdown("""
     
     .block-container {
         padding-top: 60px !important;
-        padding-bottom: 140px !important;
+        padding-bottom: 150px !important; /* 底部留足空间 */
         max-width: 1000px !important;
     }
 
@@ -85,10 +85,18 @@ st.markdown("""
     }
     .avatar-dawei { background-color: #6FCF97; box-shadow: 2px 2px 0px #27AE60; }
 
-    /* 汉字区：增加行高，防止标点拥挤 */
-    .cute-chinese { flex: 1; display: flex; flex-wrap: wrap; gap: 4px; align-items: flex-end; }
+    /* 汉字区优化：防止标点孤立换行 */
+    .cute-chinese { 
+        flex: 1; display: flex; flex-wrap: wrap; 
+        gap: 2px; /* 减小间距，更紧凑 */
+        align-items: flex-end; 
+    }
     
-    ruby { font-size: 24px; font-weight: 700; color: #4A4A4A; ruby-position: under; line-height: 2.0; }
+    ruby { 
+        font-size: 24px; font-weight: 700; color: #4A4A4A; 
+        ruby-position: under; line-height: 2.0; 
+        margin-right: 2px; /* 每个字之间微小距离 */
+    }
     rt { font-size: 12px; color: #FF8BA7; font-weight: 600; font-family: sans-serif; }
 
     .cute-trans {
@@ -96,17 +104,29 @@ st.markdown("""
         border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4;
     }
 
-    /* 底部输入框 (单框修复) */
+    /* 🚀 终极修复：纯 CSS 强制固定输入框 */
     div[data-testid="stTextInput"] {
-        position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-        width: 90%; max-width: 900px; z-index: 99999;
-        background-color: #FFFFFF; padding: 10px 20px; border-radius: 50px;
-        box-shadow: 0 10px 25px rgba(255, 159, 28, 0.2); border: 3px solid #FFE5B4;
+        position: fixed !important;
+        bottom: 30px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: 90% !important;
+        max-width: 900px !important;
+        z-index: 99999 !important;
+        background-color: #FFFFFF;
+        padding: 5px 20px;
+        border-radius: 50px;
+        box-shadow: 0 10px 25px rgba(255, 159, 28, 0.2);
+        border: 3px solid #FFE5B4;
     }
+    
+    /* 隐藏原本可能出现的占位符 */
+    div[data-testid="stTextInput"] > div { margin-top: 0 !important; }
+
     div[data-testid="stTextInput"] input { border: none; background-color: transparent; font-size: 1.1rem; color: #5D5650; }
     div[data-testid="stTextInput"]:focus-within {
         border-color: #FFD166; box-shadow: 0 10px 30px rgba(255, 159, 28, 0.3);
-        transform: translateX(-50%) translateY(-2px); transition: all 0.3s ease;
+        transform: translateX(-50%) translateY(-2px) !important; transition: all 0.3s ease;
     }
 
     .hide-pinyin rt { display: none !important; }
@@ -115,7 +135,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. AI 逻辑 (重点修改：强制标点) ---
+# --- 3. AI 逻辑 ---
 def call_ai(topic, level, keywords):
     if not MY_API_KEY: return None
     try:
@@ -123,7 +143,6 @@ def call_ai(topic, level, keywords):
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
 
-        # 🔴 核心修改：明确要求标点符号，并给出带标点的示例
         prompt = f"""
         Act as a JSON API. Create a Chinese dialogue (4-6 lines) between '美美' (Female) and '大卫' (Male).
         Topic: {topic}. Level: {level}. Keywords: {keywords}.
@@ -197,7 +216,6 @@ def main():
     if "current_data" not in st.session_state: st.session_state.current_data = None
     if "audio_file" not in st.session_state: st.session_state.audio_file = ""
 
-    # 侧边栏
     with st.sidebar:
         st.header("🐼 Settings")
         ui_lang = st.selectbox("Language", ["Español", "English"])
@@ -241,13 +259,11 @@ def main():
         html_str = f'<div class="scroll-container {container_class}">'
         for idx, line in enumerate(st.session_state.current_data):
             trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
-            
             avatar_class = "cute-avatar"
             if line["r"] == "大卫": avatar_class += " avatar-dawei"
             
             hanzi_html = ""
             for char, py in line.get("t", []):
-                # 标点符号拼音为空，rt标签会自动隐藏或不占位
                 hanzi_html += f'<ruby>{char}<rt>{py}</rt></ruby>'
             
             html_str += f'<div class="cute-row" id="row-{idx}"><div class="{avatar_class}">{line["r"][0]}</div><div class="cute-chinese">{hanzi_html}</div><div class="cute-trans">{trans}</div></div>'
@@ -255,7 +271,7 @@ def main():
         html_str += '</div>'
         st.markdown(html_str, unsafe_allow_html=True)
         
-        # 底部输入框（placeholder 设置为指令文案）
+        # 底部输入框 (这次没有 JS，纯 CSS 强力固定)
         st.text_input("user_input", label_visibility="collapsed", placeholder=ui["instr"])
 
     else:
