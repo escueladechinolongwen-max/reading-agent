@@ -29,7 +29,7 @@ UI_TEXT = {
     }
 }
 
-# --- 2. CSS 布局 (修复显示问题) ---
+# --- 2. CSS 布局 (强制修复) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;700&display=swap');
@@ -64,7 +64,7 @@ st.markdown("""
         margin-bottom: 80px; 
         display: flex;
         flex-direction: column;
-        gap: 0px; /* 让行与行更紧凑 */
+        gap: 0; 
     }
 
     /* 行容器 */
@@ -223,51 +223,32 @@ def main():
         if os.path.exists(st.session_state.audio_file):
             st.components.v1.html(get_player_html(st.session_state.audio_file, st.session_state.ts), height=60)
 
-        # 🔵 重点修复：构建 HTML 字符串
+        # 🔴 关键修复：去除缩进，拼接成单行 HTML
         full_html = '<div class="scroll-container">'
         
         for idx, line in enumerate(st.session_state.current_data):
             trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
             
-            # 开始构建这一行
-            row_html = f"""
-            <div class="row-container" id="row-{idx}">
-                <div class="left-box">{trans}</div>
-                <div class="right-box">
-                    <span class="role-tag">{line['r']}</span>
-            """
-            
-            # 添加汉字拼音
+            # 拼接汉字部分
+            hanzi_html = ""
             for char, py in line.get("t", []):
-                row_html += f'<ruby>{char}<rt>{py}</rt></ruby>'
+                hanzi_html += f'<ruby>{char}<rt>{py}</rt></ruby>'
             
-            # 闭合标签
-            row_html += """
-                </div>
-            </div>
-            """
+            # 拼接整行 (注意：这里不要有换行符和缩进)
+            row_html = f'<div class="row-container" id="row-{idx}"><div class="left-box">{trans}</div><div class="right-box"><span class="role-tag">{line["r"]}</span>{hanzi_html}</div></div>'
+            
             full_html += row_html
             
         full_html += '</div>'
         
-        # 🔵 重点修复：使用 unsafe_allow_html=True 渲染
+        # 渲染 HTML
         st.markdown(full_html, unsafe_allow_html=True)
         
         # 底部固定区
-        st.markdown(f"""
-        <div class="fixed-bottom">
-            <div style="font-weight:bold; color:#3b82f6; margin-bottom:5px;">{ui['instr']}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="fixed-bottom"><div style="font-weight:bold; color:#3b82f6; margin-bottom:5px;">{ui["instr"]}</div></div>', unsafe_allow_html=True)
         
         st.text_input("input", label_visibility="collapsed", placeholder="Type here...")
-        st.markdown("""
-        <script>
-            const inputFrame = window.parent.document.querySelector('.stTextInput');
-            const footer = window.parent.document.querySelector('.fixed-bottom');
-            if(inputFrame && footer) { footer.appendChild(inputFrame); }
-        </script>
-        """, unsafe_allow_html=True)
+        st.markdown("<script>const inputFrame = window.parent.document.querySelector('.stTextInput');const footer = window.parent.document.querySelector('.fixed-bottom');if(inputFrame && footer) { footer.appendChild(inputFrame); }</script>", unsafe_allow_html=True)
 
     else:
         st.info("👈 Please enter settings and click Generate")
