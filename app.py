@@ -15,8 +15,8 @@ st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 UI_TEXT = {
-    "Español": { "pinyin": "Pinyin", "trans": "Traducción", "typing_instr": "Instrucción: Sigue el texto de arriba para practicar.", "refresh": "Regenerar Audio", "gen_btn": "Generar Lección ✨", "topic": "Tema", "level": "Nivel (HSK)", "keywords": "Palabras clave", "ai_thinking": "Generando lección..." },
-    "English": { "pinyin": "Pinyin", "trans": "Translation", "typing_instr": "Instruction: Follow the text above to practice.", "refresh": "Regenerate Audio", "gen_btn": "Generate Lesson ✨", "topic": "Topic", "level": "Level (HSK)", "keywords": "Keywords", "ai_thinking": "Generating lesson..." }
+    "Español": { "pinyin": "Pinyin", "trans": "Traducción", "typing_instr": "Instrucción: Sigue el texto de arriba para practicar.", "refresh": "Regenerar Audio", "gen_btn": "Generar Lección ✨", "topic": "Tema", "level": "Nivel (HSK)", "keywords": "Palabras clave", "ai_thinking": "Generando lección con Gemini 2.0..." },
+    "English": { "pinyin": "Pinyin", "trans": "Translation", "typing_instr": "Instruction: Follow the text above to practice.", "refresh": "Regenerate Audio", "gen_btn": "Generate Lesson ✨", "topic": "Topic", "level": "Level (HSK)", "keywords": "Keywords", "ai_thinking": "Generating lesson with Gemini 2.0..." }
 }
 
 st.markdown("""
@@ -40,7 +40,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 真正的 AI 逻辑 (V39.0) ---
+# --- 2. 真正的 AI 逻辑 (Gemini 2.0 Flash) ---
 def call_real_ai(topic, level, keywords):
     if not MY_API_KEY:
         return [{"r": "System", "t": [("Key", ""), ("未", "wèi"), ("配", "pèi"), ("置", "zhì")], "tr_es": "Falta API Key", "tr_en": "API Key Missing"}]
@@ -48,11 +48,10 @@ def call_real_ai(topic, level, keywords):
     try:
         genai.configure(api_key=MY_API_KEY)
         
-        # 💡 使用最新的 1.5 Flash 模型 (在美国区飞快)
-        # 如果您想用 2.0，可以把下面改成 'gemini-2.0-flash-exp'
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # 💡 这里改成了 Gemini 2.0 Flash Exp (你需要美国服务器支持)
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
         
-        # 关闭安全拦截，防止误杀
+        # 关闭安全拦截
         safety = {
             HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
             HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
@@ -74,7 +73,6 @@ def call_real_ai(topic, level, keywords):
         return json.loads(text)
 
     except Exception as e:
-        # 如果出错，把错误信息作为对话显示出来，方便查看
         return [{"r": "Error", "t": [("生", ""), ("成", ""), ("失", ""), ("败", "")], "tr_es": str(e), "tr_en": "Error"}]
 
 # --- 3. 语音合成 ---
