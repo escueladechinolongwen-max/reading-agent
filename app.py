@@ -37,12 +37,11 @@ UI_TEXT = {
     }
 }
 
-# --- 2. 🎨 CSS 纯净锁定版 ---
+# --- 2. 🎨 CSS 纯净锁定 & 像素级对齐 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Nunito:wght@700&display=swap');
     
-    /* 1. 锁死主页面，绝对禁止外层滚动 */
     html, body, [data-testid="stAppViewContainer"] {
         background-color: #FFFBF0 !important;
         font-family: 'Nunito', 'Noto Sans SC', sans-serif;
@@ -54,9 +53,9 @@ st.markdown("""
     .block-container {
         padding-top: 30px !important;
         padding-bottom: 0px !important; 
-        max-width: 1000px !important;
+        max-width: 100% !important; /* 让内部元素自己决定宽度 */
         height: 100vh !important;
-        overflow: hidden !important; /* 再次上锁 */
+        overflow: hidden !important;
     }
 
     .main-title {
@@ -65,25 +64,26 @@ st.markdown("""
         text-shadow: 2px 2px 0px #FFEaa7;
     }
 
-    /* 2. ☁️ 阅读卡片 (固定高度，内部独立滚动) */
+    /* 2. ☁️ 阅读卡片 (严格锁定尺寸) */
     .scroll-container {
         background: #FFFFFF;
         border-radius: 25px;
         padding: 30px;
+        box-sizing: border-box; /* 确保 padding 包含在宽度内 */
         box-shadow: 0 8px 20px rgba(235, 212, 180, 0.4);
         border: 2px solid #FFF5E0;
         
-        /* 核心修复：动态计算高度，给上下留出空间 */
-        height: calc(100vh - 320px); 
-        overflow-y: auto !important; /* 只有这里可以滚动 */
+        height: calc(100vh - 300px); 
+        overflow-y: auto !important; 
         
         display: flex; flex-direction: column; gap: 15px;
-        width: 100%; 
-        max-width: 900px; 
+        
+        /* 🚀 核心对齐公式 */
+        width: 90%; 
+        max-width: 800px; 
         margin: 0 auto;
     }
 
-    /* 隐藏浏览器原生丑陋滚动条，换成可爱的 */
     .scroll-container::-webkit-scrollbar { width: 8px; }
     .scroll-container::-webkit-scrollbar-track { background: transparent; }
     .scroll-container::-webkit-scrollbar-thumb { background-color: #FFE5B4; border-radius: 10px; }
@@ -92,7 +92,6 @@ st.markdown("""
         display: flex; align-items: flex-start; padding: 15px;
         border-bottom: 2px dashed #FFF0D4; transition: all 0.3s ease; border-radius: 12px;
     }
-    .cute-row:hover { background-color: #FFFCF5; }
 
     .cute-avatar {
         background-color: #FFD166; color: #fff; width: 40px; height: 40px; border-radius: 50%;
@@ -111,17 +110,19 @@ st.markdown("""
         border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4;
     }
 
-    /* 3. 🚀 纯 CSS 终极输入框定位 (绝不误伤侧边栏) */
-    /* 严格限定：只抓取主屏幕 (stMain) 里的输入框 */
+    /* 3. 🚀 纯 CSS 终极输入框定位 (完美尺寸匹配) */
     section[data-testid="stMain"] div[data-testid="stTextInput"] {
         position: fixed !important; 
         bottom: 30px !important; 
         left: 50% !important; 
         transform: translateX(-50%) !important;
-        width: 90% !important; 
-        max-width: 900px !important; /* 与卡片对齐 */
-        z-index: 99999 !important;
         
+        /* 🚀 核心对齐公式 (必须和上方卡片一模一样) */
+        width: 90% !important; 
+        max-width: 800px !important; 
+        box-sizing: border-box !important;
+        
+        z-index: 99999 !important;
         background-color: #FFFFFF !important;
         padding: 5px 20px !important;
         border-radius: 50px !important;
@@ -129,27 +130,27 @@ st.markdown("""
         border: 3px solid #FFE5B4 !important;
     }
 
-    /* 去掉里面原生的边框和背景 */
     section[data-testid="stMain"] div[data-testid="stTextInput"] input {
         border: none !important; background-color: transparent !important; 
         font-size: 1.1rem !important; color: #5D5650 !important;
         box-shadow: none !important; padding: 10px !important;
     }
     
-    /* 聚焦效果 */
     section[data-testid="stMain"] div[data-testid="stTextInput"]:focus-within {
         border-color: #FFD166 !important;
         box-shadow: 0 10px 30px rgba(255, 159, 28, 0.3) !important;
         transform: translateX(-50%) translateY(-2px) !important;
         transition: all 0.3s ease;
     }
-
-    /* 隐藏标签 */
     section[data-testid="stMain"] div[data-testid="stTextInput"] label { display: none !important; }
 
+    /* 控制开关 */
     .hide-pinyin rt { display: none !important; }
     .hide-trans .cute-trans { opacity: 0; }
-    .active-highlight { background-color: #FFF8E1 !important; border-radius: 12px; }
+    
+    /* 🌟 双色高亮效果 */
+    .active-meimei { background-color: #FFF8E1 !important; border-radius: 12px; transition: background 0.2s; } /* 奶油黄 */
+    .active-dawei { background-color: #E8F8F5 !important; border-radius: 12px; transition: background 0.2s; } /* 薄荷绿 */
 </style>
 """, unsafe_allow_html=True)
 
@@ -191,7 +192,8 @@ async def make_audio(data, filename):
         for i, line in enumerate(data):
             voice = "zh-CN-XiaoxiaoNeural" if line["r"] == "美美" else "zh-CN-YunxiNeural"
             raw = "".join([p[0] for p in line.get("t", [])])
-            dur = len(raw) * 0.28 + 0.5 
+            # ⏱️ 紧缩时间公式，消除延迟：0.25秒/字 + 0.35秒停顿
+            dur = len(raw) * 0.25 + 0.35 
             ts.append({"start": curr, "end": curr + dur, "role": line["r"]})
             try:
                 comm = edge_tts.Communicate(raw, voice)
@@ -203,7 +205,7 @@ async def make_audio(data, filename):
             curr += dur
     return ts
 
-# --- 5. 播放器 ---
+# --- 5. 播放器 (🌟 增加双色识别) ---
 def get_player_html(file_path, ts):
     with open(file_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
     return f"""
@@ -219,10 +221,18 @@ def get_player_html(file_path, ts):
                 const el = window.parent.document.getElementById('row-'+i);
                 if (el) {{
                     if (cur >= t.start && cur < t.end) {{
-                        el.classList.add("active-highlight");
+                        // 判断角色，赋予不同颜色
+                        if (t.role === "美美") {{
+                            el.classList.add("active-meimei");
+                            el.classList.remove("active-dawei");
+                        }} else {{
+                            el.classList.add("active-dawei");
+                            el.classList.remove("active-meimei");
+                        }}
                         el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
                     }} else {{
-                        el.classList.remove("active-highlight");
+                        // 移除所有高亮
+                        el.classList.remove("active-meimei", "active-dawei");
                     }}
                 }}
             }});
@@ -242,7 +252,7 @@ def main():
         topic = st.text_input(ui["topic"], "School")
         level = st.selectbox(ui["level"], ["HSK 1", "HSK 2", "HSK 3"])
         keys = st.text_input(ui["keywords"], "书, 学习")
-        num_lines = st.slider(ui["lines"], min_value=4, max_value=12, value=6, step=2)
+        num_lines = st.slider(ui["lines"], min_value=4, max_value=12, value=10, step=2)
         
         if st.button(ui["gen_btn"]):
             with st.spinner(ui["loading"]):
@@ -290,7 +300,7 @@ def main():
         html_str += '</div>'
         st.markdown(html_str, unsafe_allow_html=True)
         
-        # 🌟 真正的纯粹输出：就只有这一行代码渲染输入框，没有任何多余的 HTML 或 JS 障眼法
+        # 纯粹的输入框，大小会被纯 CSS 严格控制
         st.text_input("practice_input", label_visibility="collapsed", placeholder=ui["instr"])
 
     else:
