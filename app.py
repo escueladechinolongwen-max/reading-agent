@@ -13,7 +13,7 @@ st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY")
 TARGET_MODEL = 'models/gemini-2.5-flash'
 
-# 🌍 语言包 (新增了行数控制)
+# 🌍 语言包
 UI_TEXT = {
     "Español": { 
         "instr": "✍️ Escribe aquí para practicar...", 
@@ -37,21 +37,26 @@ UI_TEXT = {
     }
 }
 
-# --- 2. 🎨 CSS 完美对齐 & 防止误伤 ---
+# --- 2. 🎨 CSS 纯净锁定版 ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Nunito:wght@700&display=swap');
     
+    /* 1. 锁死主页面，绝对禁止外层滚动 */
     html, body, [data-testid="stAppViewContainer"] {
         background-color: #FFFBF0 !important;
         font-family: 'Nunito', 'Noto Sans SC', sans-serif;
-        overflow: hidden !important;
+        overflow: hidden !important; 
+        height: 100vh !important;
+        margin: 0; padding: 0;
     }
     
     .block-container {
-        padding-top: 50px !important;
-        padding-bottom: 140px !important; 
+        padding-top: 30px !important;
+        padding-bottom: 0px !important; 
         max-width: 1000px !important;
+        height: 100vh !important;
+        overflow: hidden !important; /* 再次上锁 */
     }
 
     .main-title {
@@ -60,20 +65,28 @@ st.markdown("""
         text-shadow: 2px 2px 0px #FFEaa7;
     }
 
-    /* ☁️ 阅读卡片 (严格锁定最大宽度 900px) */
+    /* 2. ☁️ 阅读卡片 (固定高度，内部独立滚动) */
     .scroll-container {
         background: #FFFFFF;
         border-radius: 25px;
         padding: 30px;
         box-shadow: 0 8px 20px rgba(235, 212, 180, 0.4);
         border: 2px solid #FFF5E0;
-        height: 60vh; 
-        overflow-y: auto;
+        
+        /* 核心修复：动态计算高度，给上下留出空间 */
+        height: calc(100vh - 320px); 
+        overflow-y: auto !important; /* 只有这里可以滚动 */
+        
         display: flex; flex-direction: column; gap: 15px;
         width: 100%; 
         max-width: 900px; 
         margin: 0 auto;
     }
+
+    /* 隐藏浏览器原生丑陋滚动条，换成可爱的 */
+    .scroll-container::-webkit-scrollbar { width: 8px; }
+    .scroll-container::-webkit-scrollbar-track { background: transparent; }
+    .scroll-container::-webkit-scrollbar-thumb { background-color: #FFE5B4; border-radius: 10px; }
 
     .cute-row {
         display: flex; align-items: flex-start; padding: 15px;
@@ -98,40 +111,41 @@ st.markdown("""
         border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4;
     }
 
-    /* 🚀 底部固定层：使用 Wrapper 保证完美对齐 */
-    .footer-wrapper {
-        position: fixed; bottom: 30px; left: 0; width: 100%;
-        display: flex; justify-content: center;
-        pointer-events: none; /* 让空白处可以点击穿透 */
-        z-index: 99999;
+    /* 3. 🚀 纯 CSS 终极输入框定位 (绝不误伤侧边栏) */
+    /* 严格限定：只抓取主屏幕 (stMain) 里的输入框 */
+    section[data-testid="stMain"] div[data-testid="stTextInput"] {
+        position: fixed !important; 
+        bottom: 30px !important; 
+        left: 50% !important; 
+        transform: translateX(-50%) !important;
+        width: 90% !important; 
+        max-width: 900px !important; /* 与卡片对齐 */
+        z-index: 99999 !important;
+        
+        background-color: #FFFFFF !important;
+        padding: 5px 20px !important;
+        border-radius: 50px !important;
+        box-shadow: 0 10px 25px rgba(255, 159, 28, 0.2) !important;
+        border: 3px solid #FFE5B4 !important;
     }
 
-    /* 真实的胶囊容器 (宽度与上方卡片严格一致) */
-    .fixed-footer {
-        width: calc(100% - 4rem); /* 减去两侧默认 padding */
-        max-width: 900px; /* 与卡片保持同样的极值 */
-        background-color: #FFFFFF;
-        padding: 5px 20px;
-        border-radius: 50px;
-        box-shadow: 0 10px 25px rgba(255, 159, 28, 0.2);
-        border: 3px solid #FFE5B4;
-        pointer-events: auto; /* 恢复点击 */
-        transition: all 0.3s ease;
-    }
-    
-    .fixed-footer:focus-within {
-        border-color: #FFD166;
-        box-shadow: 0 10px 30px rgba(255, 159, 28, 0.3);
-        transform: translateY(-2px);
-    }
-
-    /* 仅修改胶囊内部的输入框，绝不影响侧边栏 */
-    .fixed-footer div[data-testid="stTextInput"] { margin-bottom: 0 !important; }
-    .fixed-footer input {
+    /* 去掉里面原生的边框和背景 */
+    section[data-testid="stMain"] div[data-testid="stTextInput"] input {
         border: none !important; background-color: transparent !important; 
         font-size: 1.1rem !important; color: #5D5650 !important;
         box-shadow: none !important; padding: 10px !important;
     }
+    
+    /* 聚焦效果 */
+    section[data-testid="stMain"] div[data-testid="stTextInput"]:focus-within {
+        border-color: #FFD166 !important;
+        box-shadow: 0 10px 30px rgba(255, 159, 28, 0.3) !important;
+        transform: translateX(-50%) translateY(-2px) !important;
+        transition: all 0.3s ease;
+    }
+
+    /* 隐藏标签 */
+    section[data-testid="stMain"] div[data-testid="stTextInput"] label { display: none !important; }
 
     .hide-pinyin rt { display: none !important; }
     .hide-trans .cute-trans { opacity: 0; }
@@ -228,8 +242,6 @@ def main():
         topic = st.text_input(ui["topic"], "School")
         level = st.selectbox(ui["level"], ["HSK 1", "HSK 2", "HSK 3"])
         keys = st.text_input(ui["keywords"], "书, 学习")
-        
-        # 🌟 新增：动态控制行数 (4 到 12 行，默认 6 行)
         num_lines = st.slider(ui["lines"], min_value=4, max_value=12, value=6, step=2)
         
         if st.button(ui["gen_btn"]):
@@ -278,21 +290,8 @@ def main():
         html_str += '</div>'
         st.markdown(html_str, unsafe_allow_html=True)
         
-        # 底部框架准备
-        st.markdown('<div class="footer-wrapper"><div class="fixed-footer"></div></div>', unsafe_allow_html=True)
-        
-        # 真实的练习输入框
-        st.text_input("user_input", label_visibility="collapsed", placeholder=ui["instr"])
-        
-        # 🌟 精准搬运：只拿最后一个输入框，绝不碰侧边栏的关键词框
-        st.markdown("""
-        <script>
-            const allInputs = window.parent.document.querySelectorAll('.stTextInput');
-            const practiceInput = allInputs[allInputs.length - 1]; // 永远抓取最后一个
-            const footerEl = window.parent.document.querySelector('.fixed-footer');
-            if(practiceInput && footerEl) { footerEl.appendChild(practiceInput); }
-        </script>
-        """, unsafe_allow_html=True)
+        # 🌟 真正的纯粹输出：就只有这一行代码渲染输入框，没有任何多余的 HTML 或 JS 障眼法
+        st.text_input("practice_input", label_visibility="collapsed", placeholder=ui["instr"])
 
     else:
         st.info("👈 Please enter settings and click Generate")
