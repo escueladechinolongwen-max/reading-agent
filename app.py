@@ -73,11 +73,13 @@ st.markdown("""
 
     .main-title { text-align: center; color: #5D5650; font-weight: 800; font-size: 2rem; letter-spacing: 1px; margin-bottom: 20px; text-shadow: 2px 2px 0px #FFEaa7; }
 
+    /* 🚀 核心对齐修复 1：阅读卡片 */
     .scroll-container {
         background: #FFFFFF; border-radius: 25px; padding: 30px 40px; box-sizing: border-box; 
         box-shadow: 0 8px 20px rgba(235, 212, 180, 0.4); border: 2px solid #FFF5E0;
-        height: calc(100vh - 300px); overflow-y: auto !important; 
-        display: flex; flex-direction: column; gap: 15px; width: 90%; max-width: 800px; margin: 0 auto;
+        height: calc(100vh - 280px); overflow-y: auto !important; 
+        display: flex; flex-direction: column; gap: 15px; 
+        width: 90%; max-width: 800px; margin: 0 auto;
     }
 
     .scroll-container::-webkit-scrollbar { width: 8px; }
@@ -105,13 +107,15 @@ st.markdown("""
 
     .cute-trans { width: 35%; padding-left: 20px; color: #AAB7B8; font-size: 0.9rem; font-style: italic; border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4; }
 
+    /* 🚀 核心对齐修复 2：彻底放弃 fixed，直接用 margin 自动居中对齐 */
     section[data-testid="stMain"] div[data-testid="stTextInput"] {
-        position: fixed !important; bottom: 30px !important; left: 50% !important; transform: translateX(-50%) !important;
-        width: 90% !important; max-width: 800px !important; box-sizing: border-box !important; z-index: 99999 !important;
+        margin: 20px auto 0 auto !important; /* 跟随上方元素，自动居中 */
+        width: 90% !important; max-width: 800px !important; /* 和阅读框参数完全一样 */
+        box-sizing: border-box !important; 
         background-color: #FFFFFF !important; padding: 5px 20px !important; border-radius: 50px !important; box-shadow: 0 10px 25px rgba(255, 159, 28, 0.2) !important; border: 3px solid #FFE5B4 !important;
     }
     section[data-testid="stMain"] div[data-testid="stTextInput"] input { border: none !important; background-color: transparent !important; font-size: 1.1rem !important; color: #5D5650 !important; box-shadow: none !important; padding: 10px !important; }
-    section[data-testid="stMain"] div[data-testid="stTextInput"]:focus-within { border-color: #FFD166 !important; box-shadow: 0 10px 30px rgba(255, 159, 28, 0.3) !important; transform: translateX(-50%) translateY(-2px) !important; transition: all 0.3s ease; }
+    section[data-testid="stMain"] div[data-testid="stTextInput"]:focus-within { border-color: #FFD166 !important; box-shadow: 0 10px 30px rgba(255, 159, 28, 0.3) !important; transform: translateY(-2px) !important; transition: all 0.3s ease; }
     section[data-testid="stMain"] div[data-testid="stTextInput"] label { display: none !important; }
 
     .hide-pinyin rt { display: none !important; }
@@ -124,7 +128,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. AI 逻辑 (🌟 彻底重塑逻辑与语感规则) ---
+# --- 3. AI 逻辑 ---
 def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
     if not MY_API_KEY: return None
     try:
@@ -132,7 +136,6 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
         
-        # 适中的温度：既保证创造力，又不过度发散导致逻辑崩塌
         gen_config = GenerationConfig(temperature=0.7)
 
         allowed_vocab = []
@@ -226,9 +229,10 @@ def get_player_html(file_path, ts, is_story_mode):
     with open(file_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
     is_story_str = "true" if is_story_mode else "false"
     
+    # 🚀 速度按钮修复：去掉了高度限制 (height:40px)，并提升了 z-index，让菜单能完整弹出
     return f"""
-    <div style="width:100%; text-align:center; margin-bottom:15px;">
-        <audio id="p" controls src="data:audio/mp3;base64,{b64}" style="width:100%; max-width:400px; height:40px; border-radius:20px;"></audio>
+    <div style="width:100%; text-align:center; margin-bottom:15px; position:relative; z-index:50;">
+        <audio id="p" controls src="data:audio/mp3;base64,{b64}" style="width:100%; max-width:400px;"></audio>
     </div>
     <script>
         const p = document.getElementById('p');
