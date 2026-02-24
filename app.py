@@ -31,7 +31,7 @@ HSK1_VOCAB = {
     15: ["认识", "年", "大学", "饭店", "出租车", "一起", "高兴", "听", "飞机"]
 }
 
-# 🌍 语言包 (新增 Mode 选项)
+# 🌍 语言包
 UI_TEXT = {
     "Español": { 
         "instr": "✍️ Escribe aquí para practicar...", 
@@ -74,8 +74,9 @@ st.markdown("""
 
     .main-title { text-align: center; color: #5D5650; font-weight: 800; font-size: 2rem; letter-spacing: 1px; margin-bottom: 20px; text-shadow: 2px 2px 0px #FFEaa7; }
 
+    /* 通用卡片容器 */
     .scroll-container {
-        background: #FFFFFF; border-radius: 25px; padding: 30px; box-sizing: border-box; 
+        background: #FFFFFF; border-radius: 25px; padding: 30px 40px; box-sizing: border-box; 
         box-shadow: 0 8px 20px rgba(235, 212, 180, 0.4); border: 2px solid #FFF5E0;
         height: calc(100vh - 300px); overflow-y: auto !important; 
         display: flex; flex-direction: column; gap: 15px; width: 90%; max-width: 800px; margin: 0 auto;
@@ -85,22 +86,41 @@ st.markdown("""
     .scroll-container::-webkit-scrollbar-track { background: transparent; }
     .scroll-container::-webkit-scrollbar-thumb { background-color: #FFE5B4; border-radius: 10px; }
 
+    /* 🗣️ 对话模式专属样式 */
     .cute-row { display: flex; align-items: flex-start; padding: 15px; border-bottom: 2px dashed #FFF0D4; transition: all 0.3s ease; border-radius: 12px; }
-
     .cute-avatar {
         background-color: #FFD166; color: #fff; width: 40px; height: 40px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 15px; flex-shrink: 0; box-shadow: 2px 2px 0px #F4B860;
     }
     .avatar-dawei { background-color: #6FCF97; box-shadow: 2px 2px 0px #27AE60; }
-    /* 🌟 新增旁白头像颜色 (紫色) */
-    .avatar-narrator { background-color: #B28DFF; box-shadow: 2px 2px 0px #8758FF; font-size: 14px;}
-
     .cute-chinese { flex: 1; display: flex; flex-wrap: wrap; gap: 2px; align-items: flex-end; }
+    .cute-trans { width: 35%; padding-left: 20px; color: #AAB7B8; font-size: 0.9rem; font-style: italic; border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4; }
+
+    /* 📖 故事模式专属样式 (NEW) */
+    .story-content { padding: 10px 0; }
+    .story-chinese {
+        line-height: 2.8; 
+        text-align: justify;
+    }
+    .story-sentence {
+        border-radius: 8px; transition: background 0.3s ease;
+        padding: 4px 2px; /* 给高亮留出呼吸空间 */
+    }
+    .story-trans {
+        margin-top: 40px; padding-top: 25px;
+        border-top: 2px dashed #FFF0D4;
+        color: #94A3B8; font-size: 1rem; line-height: 1.8; text-align: justify;
+    }
+    .story-trans-sentence {
+        transition: color 0.3s ease, background-color 0.3s ease;
+        border-radius: 6px; padding: 2px 4px; margin-right: 5px;
+    }
+
+    /* 字体统一定义 */
     ruby { font-size: 24px; font-weight: 700; color: #4A4A4A; ruby-position: under; line-height: 2.0; margin-right: 2px;}
     rt { font-size: 12px; color: #FF8BA7; font-weight: 600; font-family: sans-serif; }
 
-    .cute-trans { width: 35%; padding-left: 20px; color: #AAB7B8; font-size: 0.9rem; font-style: italic; border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4; }
-
+    /* 底部输入框 */
     section[data-testid="stMain"] div[data-testid="stTextInput"] {
         position: fixed !important; bottom: 30px !important; left: 50% !important; transform: translateX(-50%) !important;
         width: 90% !important; max-width: 800px !important; box-sizing: border-box !important; z-index: 99999 !important;
@@ -110,13 +130,16 @@ st.markdown("""
     section[data-testid="stMain"] div[data-testid="stTextInput"]:focus-within { border-color: #FFD166 !important; box-shadow: 0 10px 30px rgba(255, 159, 28, 0.3) !important; transform: translateX(-50%) translateY(-2px) !important; transition: all 0.3s ease; }
     section[data-testid="stMain"] div[data-testid="stTextInput"] label { display: none !important; }
 
+    /* 控制开关 */
     .hide-pinyin rt { display: none !important; }
-    .hide-trans .cute-trans { opacity: 0; }
+    .hide-trans .cute-trans, .hide-trans .story-trans { display: none !important; }
     
+    /* 🌟 高亮动画系统 */
     .active-meimei { background-color: #FFF8E1 !important; border-radius: 12px; transition: background 0.2s; } 
     .active-dawei { background-color: #E8F8F5 !important; border-radius: 12px; transition: background 0.2s; }
-    /* 🌟 新增旁白高亮颜色 */
-    .active-narrator { background-color: #F4EFFF !important; border-radius: 12px; transition: background 0.2s; }
+    
+    .active-story { background-color: #F4EFFF !important; } /* 中文淡紫高亮 */
+    .active-story-trans { color: #8758FF !important; background-color: #F4EFFF !important; font-weight: bold; } /* 翻译深紫文字高亮 */
 </style>
 """, unsafe_allow_html=True)
 
@@ -139,17 +162,16 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
             vocab_instruction = f"""
             STRICT VOCABULARY LIMIT: You MUST ONLY use Chinese words from this list: [{vocab_str}]. 
             You may also use the user-provided keywords: [{keywords}].
-            DO NOT use any other Chinese vocabulary! Keep it extremely simple.
+            DO NOT use any other Chinese vocabulary!
             """
 
-        # 🌟 根据模式切换 Prompt (巧妙融入您的设计理念：注重故事性而非宏大叙事)
         if is_story:
             prompt = f"""
             Act as a JSON API. Create a Chinese short story or paragraph (NOT a dialogue).
             Topic: {topic}. Level: {level}. Keywords: {keywords}.
             
             CRITICAL RULES:
-            1. The text MUST be broken down into exactly {num_lines} sentences/lines.
+            1. The text MUST be broken down into exactly {num_lines} sentences.
             2. ALL lines MUST use the exact role name "旁白" (Narrator).
             3. YOU MUST INCLUDE PUNCTUATION (，。？！). Treat punctuation as a character with empty pinyin "".
             4. Make it a simple, engaging, and cute story rather than a grand narrative.
@@ -191,7 +213,6 @@ async def make_audio(data, filename):
     curr = 0.0
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(data):
-            # 🌟 新增旁白专属声线 (Xiaoyi 是一个非常可爱的童声/轻快女声，适合讲故事)
             if line["r"] == "大卫": voice = "zh-CN-YunxiNeural"
             elif line["r"] == "美美": voice = "zh-CN-XiaoxiaoNeural"
             else: voice = "zh-CN-XiaoyiNeural" # 旁白声音
@@ -210,8 +231,10 @@ async def make_audio(data, filename):
     return ts
 
 # --- 5. 播放器 ---
-def get_player_html(file_path, ts):
+def get_player_html(file_path, ts, is_story_mode):
     with open(file_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
+    is_story_str = "true" if is_story_mode else "false"
+    
     return f"""
     <div style="width:100%; text-align:center; margin-bottom:15px;">
         <audio id="p" controls src="data:audio/mp3;base64,{b64}" style="width:100%; max-width:400px; height:40px; border-radius:20px;"></audio>
@@ -219,19 +242,32 @@ def get_player_html(file_path, ts):
     <script>
         const p = document.getElementById('p');
         const ts = {json.dumps(ts)};
+        const isStoryMode = {is_story_str};
+        
         p.ontimeupdate = () => {{
             const cur = p.currentTime;
             ts.forEach((t, i) => {{
                 const el = window.parent.document.getElementById('row-'+i);
+                const transEl = window.parent.document.getElementById('trans-'+i);
+                
                 if (el) {{
                     if (cur >= t.start && cur < t.end) {{
-                        el.classList.remove("active-meimei", "active-dawei", "active-narrator");
-                        if (t.role === "美美") el.classList.add("active-meimei");
-                        else if (t.role === "大卫") el.classList.add("active-dawei");
-                        else el.classList.add("active-narrator");
+                        if (isStoryMode) {{
+                            el.classList.add("active-story");
+                            if (transEl) transEl.classList.add("active-story-trans");
+                        }} else {{
+                            el.classList.remove("active-meimei", "active-dawei");
+                            if (t.role === "美美") el.classList.add("active-meimei");
+                            else el.classList.add("active-dawei");
+                        }}
                         el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
                     }} else {{
-                        el.classList.remove("active-meimei", "active-dawei", "active-narrator");
+                        if (isStoryMode) {{
+                            el.classList.remove("active-story");
+                            if (transEl) transEl.classList.remove("active-story-trans");
+                        }} else {{
+                            el.classList.remove("active-meimei", "active-dawei");
+                        }}
                     }}
                 }}
             }});
@@ -248,7 +284,6 @@ def main():
         ui_lang = st.selectbox("Language", ["Español", "English"])
         ui = UI_TEXT[ui_lang]
         
-        # 🌟 新增：模式切换开关
         selected_mode = st.radio(ui["mode"], [ui["dialogue"], ui["story"]], horizontal=True)
         is_story = (selected_mode == ui["story"])
 
@@ -264,11 +299,12 @@ def main():
         
         if st.button(ui["gen_btn"]):
             with st.spinner(ui["loading"]):
-                # 传入 is_story 参数
                 res = call_ai(topic, level, keys, num_lines, unit_limit, is_story)
                 if res:
                     st.session_state.current_data = res
                     st.session_state.audio_file = ""
+                    # 强行记录当前生成的模式，防止切换 radio 但没点击生成时的错乱
+                    st.session_state.rendered_mode_is_story = is_story 
                     st.rerun()
         
         st.divider()
@@ -282,36 +318,56 @@ def main():
     st.markdown('<div class="main-title">Reading Assistant Pro</div>', unsafe_allow_html=True)
 
     if st.session_state.current_data:
+        # 获取当时生成数据时的模式，确保视图渲染正确
+        current_view_is_story = st.session_state.get("rendered_mode_is_story", is_story)
+        
         if not st.session_state.audio_file:
             fname = f"audio_{int(time.time())}.mp3"
             st.session_state.ts = asyncio.run(make_audio(st.session_state.current_data, fname))
             st.session_state.audio_file = fname
         
         if os.path.exists(st.session_state.audio_file):
-            st.components.v1.html(get_player_html(st.session_state.audio_file, st.session_state.ts), height=60)
+            st.components.v1.html(get_player_html(st.session_state.audio_file, st.session_state.ts, current_view_is_story), height=60)
 
         container_class = ""
         if not show_pinyin: container_class += " hide-pinyin"
         if not show_trans: container_class += " hide-trans"
 
         html_str = f'<div class="scroll-container {container_class}">'
-        for idx, line in enumerate(st.session_state.current_data):
-            trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
+        
+        # 🌟 分流渲染逻辑
+        if current_view_is_story:
+            # 故事模式：段落化渲染
+            html_str += '<div class="story-content">'
+            chinese_html = '<div class="story-chinese">'
+            trans_html = '<div class="story-trans">'
             
-            # 🌟 头像逻辑：如果角色是“旁白”，使用紫色图标和书本符号
-            avatar_class = "cute-avatar"
-            avatar_char = line["r"][0]
-            if line["r"] == "大卫": 
-                avatar_class += " avatar-dawei"
-            elif line["r"] == "旁白":
-                avatar_class += " avatar-narrator"
-                avatar_char = "📖" # 旁白显示一本书
+            for idx, line in enumerate(st.session_state.current_data):
+                trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
+                
+                hanzi_html = ""
+                for char, py in line.get("t", []):
+                    hanzi_html += f'<ruby>{char}<rt>{py}</rt></ruby>'
+                
+                chinese_html += f'<span class="story-sentence" id="row-{idx}">{hanzi_html}</span> '
+                trans_html += f'<span class="story-trans-sentence" id="trans-{idx}">{idx+1}. {trans} </span>'
+                
+            chinese_html += '</div>'
+            trans_html += '</div>'
+            html_str += chinese_html + trans_html + '</div>'
             
-            hanzi_html = ""
-            for char, py in line.get("t", []):
-                hanzi_html += f'<ruby>{char}<rt>{py}</rt></ruby>'
-            
-            html_str += f'<div class="cute-row" id="row-{idx}"><div class="{avatar_class}">{avatar_char}</div><div class="cute-chinese">{hanzi_html}</div><div class="cute-trans">{trans}</div></div>'
+        else:
+            # 对话模式：气泡化渲染
+            for idx, line in enumerate(st.session_state.current_data):
+                trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
+                avatar_class = "cute-avatar"
+                if line["r"] == "大卫": avatar_class += " avatar-dawei"
+                
+                hanzi_html = ""
+                for char, py in line.get("t", []):
+                    hanzi_html += f'<ruby>{char}<rt>{py}</rt></ruby>'
+                
+                html_str += f'<div class="cute-row" id="row-{idx}"><div class="{avatar_class}">{line["r"][0]}</div><div class="cute-chinese">{hanzi_html}</div><div class="cute-trans">{trans}</div></div>'
         
         html_str += '</div>'
         st.markdown(html_str, unsafe_allow_html=True)
