@@ -86,10 +86,10 @@ st.markdown("""
     .cute-row { display: flex; align-items: flex-start; padding: 15px; border-bottom: 2px dashed #FFF0D4; transition: all 0.3s ease; border-radius: 12px; }
     .cute-avatar {
         background-color: #FFD166; color: #fff; width: 40px; height: 40px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 15px; flex-shrink: 0; box-shadow: 2px 2px 0px #F4B860;
+        display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; margin-right: 15px; flex-shrink: 0; box-shadow: 2px 2px 0px #F4B860;
     }
     .avatar-dawei { background-color: #6FCF97; box-shadow: 2px 2px 0px #27AE60; }
-    .avatar-narrator { background-color: #B28DFF; box-shadow: 2px 2px 0px #8758FF; font-size: 14px;}
+    .avatar-narrator { background-color: #B28DFF; box-shadow: 2px 2px 0px #8758FF; font-size: 16px;}
     .cute-chinese { flex: 1; display: flex; flex-wrap: wrap; gap: 2px; align-items: flex-end; }
     
     .story-content { padding: 10px 0; }
@@ -155,15 +155,14 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             
         topic_instruction = f"Topic: {topic}." if topic else "Topic: Randomly select an interesting daily life scenario fitting the allowed vocabulary."
 
-        # 🌟 核心语法修复：专治各种洋泾浜！
+        # 🌟 重新焊死 JSON 格式，绝不允许出现 KeyError!
         common_rules = f"""
-        CRITICAL GRAMMAR & NATIVE FLOW RULES:
-        1. LOGIC FIRST: The text MUST be 100% natural and natively fluent.
-        2. NO CHINGLISH (拒绝中式英语): NEVER literally translate English idioms. For example, for an outro, NEVER say "谢谢你们听我们". Just say "谢谢，再见！". 
-        3. QUANTITY & TIME RULE (时间与数量语法): You MUST use "两" (liǎng) for quantities and time (e.g., "两点", "两个"). NEVER use "二点" or "二个" - this is grammatically wrong! Use "二" ONLY for counting math numbers.
-        4. EVASION RULE: If a sentence is grammatically difficult with only HSK1 words, ABANDON IT. Write short, simple, perfect sentences.
-        5. YOU MUST INCLUDE PUNCTUATION (，。？！).
-        6. Output JSON ARRAY only.
+        CRITICAL FORMAT & NATIVE FLOW RULES:
+        1. NO CHINGLISH: NEVER literally translate English idioms. For an outro, just say "谢谢，再见！". 
+        2. QUANTITY RULE: You MUST use "两" (liǎng) for quantities (e.g., "两点", "两个"). NEVER use "二点".
+        3. EVASION RULE: If a sentence is grammatically difficult with only HSK1 words, ABANDON IT. Write simple, perfect sentences.
+        4. YOU MUST INCLUDE PUNCTUATION (，。？！). Treat punctuation as a character with empty pinyin "".
+        5. OUTPUT JSON ARRAY ONLY! YOU MUST USE EXACTLY THESE KEYS: "r" (Role), "t" (Text list), "tr_es" (Spanish translation), "tr_en" (English translation).
         """
 
         if mode_type == "story":
@@ -172,8 +171,12 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             {common_rules}
             ADDITIONAL STORY RULES:
             - The text MUST be exactly {num_lines} sentences.
-            - ALL lines MUST use the exact role name "旁白" (Narrator).
+            - ALL lines MUST use the exact role name "旁白" (Narrator) for the "r" key.
             {vocab_instruction}
+            MANDATORY FORMAT: 
+            [
+                {{"r": "旁白", "t": [["这", "zhè"], ["是", "shì"], ["。", ""]], "tr_es": "Esto es.", "tr_en": "This is."}}
+            ]
             """
         elif mode_type == "podcast":
             prompt = f"""
@@ -181,11 +184,13 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             {common_rules}
             ADDITIONAL PODCAST RULES:
             - The text MUST be exactly {num_lines} lines long.
-            - Create an engaging PODCAST SHOW hosted by '美美' and '大卫'.
-            - The first 1-2 lines MUST be a podcast intro (welcoming listeners naturally using simple words).
-            - The last line MUST be a podcast outro (saying goodbye. JUST USE "谢谢大家，再见！" or "谢谢，再见！").
-            - The middle lines should discuss the topic like radio hosts.
+            - Create an engaging PODCAST hosted by '美美' and '大卫'. Use these names for the "r" key.
+            - The first 1-2 lines MUST be a podcast intro. The last line MUST be an outro.
             {vocab_instruction}
+            MANDATORY FORMAT: 
+            [
+                {{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}}
+            ]
             """
         else: # dialogue
             prompt = f"""
@@ -193,15 +198,19 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             {common_rules}
             ADDITIONAL DIALOGUE RULES:
             - Dialogue MUST be exactly {num_lines} lines long.
-            - Create an engaging back-and-forth conversation between '美美' and '大卫'.
+            - Create an engaging conversation between '美美' and '大卫'. Use these names for the "r" key.
             {vocab_instruction}
+            MANDATORY FORMAT: 
+            [
+                {{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}}
+            ]
             """
 
         response = model.generate_content(prompt, safety_settings=safety, generation_config=gen_config)
         text = response.text.strip().replace("```json", "").replace("```", "")
         return json.loads(text)
     except Exception as e:
-        st.error(str(e))
+        st.error(f"AI Generation Error: {str(e)}")
         return None
 
 # --- 4. 音频 ---
@@ -210,13 +219,16 @@ async def make_audio(data, filename):
     curr = 0.0
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(data):
-            if line["r"] == "大卫": voice = "zh-CN-YunxiNeural"
-            elif line["r"] == "美美": voice = "zh-CN-XiaoxiaoNeural"
+            # 🌟 加入防弹 Fallback：如果 AI 漏写了 "r"，默认分配给美美或旁白，绝不崩溃！
+            role = line.get("r", "美美") 
+            
+            if role == "大卫": voice = "zh-CN-YunxiNeural"
+            elif role == "美美": voice = "zh-CN-XiaoxiaoNeural"
             else: voice = "zh-CN-XiaoyiNeural" 
 
             raw = "".join([p[0] for p in line.get("t", [])])
             dur = len(raw) * 0.25 + 0.35 
-            ts.append({"start": curr, "end": curr + dur, "role": line["r"]})
+            ts.append({"start": curr, "end": curr + dur, "role": role})
             try:
                 comm = edge_tts.Communicate(raw, voice)
                 temp_f = f"tmp_{int(time.time())}_{i}.mp3"
@@ -227,13 +239,12 @@ async def make_audio(data, filename):
             curr += dur
     return ts
 
-# --- 5. 播放器 (🌟 植入 BGM 氛围系统) ---
+# --- 5. 播放器 ---
 def get_player_html(file_path, ts, mode_type):
     with open(file_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
     is_podcast_str = "true" if mode_type == "podcast" else "false"
     is_story_str = "true" if mode_type == "story" else "false"
     
-    # 🌟 这里的 Pixabay 链接提供免费的 Lo-fi 背景节奏，只有在播客模式才会被 JS 触发
     return f"""
     <div style="width:100%; display:flex; flex-direction:column; align-items:center; margin-bottom:20px; position:relative; z-index:50;">
         <audio id="p" controls src="data:audio/mp3;base64,{b64}" style="width:100%; max-width:400px; outline:none; margin-bottom:10px;"></audio>
@@ -253,7 +264,6 @@ def get_player_html(file_path, ts, mode_type):
         const isStoryMode = {is_story_str};
         const isPodcastMode = {is_podcast_str};
         
-        // 如果是播客模式，绑定 BGM 联动，并将音量设为 12% (不喧宾夺主)
         if (isPodcastMode && bgm) {{
             bgm.volume = 0.12;
             p.addEventListener('play', () => bgm.play().catch(e => console.log('BGM wait')));
@@ -273,8 +283,9 @@ def get_player_html(file_path, ts, mode_type):
                             if (transEl) transEl.classList.add("active-story-trans");
                         }} else {{
                             el.classList.remove("active-meimei", "active-dawei");
-                            if (t.role === "美美") el.classList.add("active-meimei");
-                            else el.classList.add("active-dawei");
+                            // 容错处理高亮
+                            if (t.role === "大卫") el.classList.add("active-dawei");
+                            else el.classList.add("active-meimei"); 
                         }}
                         el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
                     }} else {{
@@ -368,12 +379,24 @@ def main():
                 trans_html += f'<span class="story-trans-sentence" id="trans-{idx}">{idx+1}. {trans} </span>'
             html_str += f'</div>{trans_html}</div></div>'
             
-        else: # dialogue & podcast
+        else:
             for idx, line in enumerate(st.session_state.current_data):
+                # 🌟 渲染时的容错处理
+                role = line.get("r", "美美")
                 trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
-                avatar_class = "cute-avatar avatar-dawei" if line["r"] == "大卫" else "cute-avatar"
+                
+                if role == "大卫":
+                    avatar_class = "cute-avatar avatar-dawei"
+                    avatar_char = "大"
+                elif role == "美美":
+                    avatar_class = "cute-avatar"
+                    avatar_char = "美"
+                else: # 防错，或者在 Podcast 模式下出现旁白
+                    avatar_class = "cute-avatar avatar-narrator"
+                    avatar_char = "🎙️" if current_view_mode == "podcast" else "📖"
+
                 hanzi_html = "".join([f'<ruby>{char}<rt>{py}</rt></ruby>' for char, py in line.get("t", [])])
-                html_str += f'<div class="cute-row" id="row-{idx}"><div class="{avatar_class}">{line["r"][0]}</div><div class="cute-chinese">{hanzi_html}</div><div class="cute-trans">{trans}</div></div>'
+                html_str += f'<div class="cute-row" id="row-{idx}"><div class="{avatar_class}">{avatar_char}</div><div class="cute-chinese">{hanzi_html}</div><div class="cute-trans">{trans}</div></div>'
         
         html_str += '</div>'
         st.markdown(html_str, unsafe_allow_html=True)
