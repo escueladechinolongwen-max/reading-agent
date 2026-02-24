@@ -31,7 +31,6 @@ HSK1_VOCAB = {
     15: ["认识", "年", "大学", "饭店", "出租车", "一起", "高兴", "听", "飞机"]
 }
 
-# 🌍 语言包
 UI_TEXT = {
     "Español": { 
         "instr": "✍️ Escribe aquí para practicar...", 
@@ -125,7 +124,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. AI 逻辑 (🌟 增强创造力与多样性) ---
+# --- 3. AI 逻辑 (🌟 彻底重塑逻辑与语感规则) ---
 def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
     if not MY_API_KEY: return None
     try:
@@ -133,8 +132,8 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
         
-        # 🌟 提升 Creativity (温度)
-        gen_config = GenerationConfig(temperature=0.85)
+        # 适中的温度：既保证创造力，又不过度发散导致逻辑崩塌
+        gen_config = GenerationConfig(temperature=0.7)
 
         allowed_vocab = []
         if level == "HSK 1":
@@ -147,25 +146,28 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
             vocab_instruction = f"""
             STRICT VOCABULARY LIMIT: You MUST ONLY use Chinese words from this list: [{vocab_str}]. 
             You may also use the user-provided keywords: [{keywords}].
-            DO NOT use any other Chinese vocabulary!
-            
-            CRITICAL CREATIVITY RULE: You MUST actively utilize the MOST ADVANCED words from the allowed list to make the content rich and diverse! Do NOT just repeat basic greetings like "你好" or "谢谢" over and over.
+            DO NOT use any other words.
             """
             
-        # 🌟 动态处理空白 Topic
-        topic_instruction = f"Topic: {topic}." if topic else "Topic: You MUST randomly select an interesting and unexpected daily life scenario (e.g., weather, food, eating out, taking a taxi, hobbies, shopping) that fits the allowed vocabulary."
+        topic_instruction = f"Topic: {topic}." if topic else "Topic: Randomly select a NATURAL and EVERYDAY life scenario (e.g., weather, eating out, taking a taxi, hobbies, talking about family) that fits the allowed vocabulary perfectly."
+
+        common_rules = f"""
+        CRITICAL LOGIC & QUALITY RULES (ABSOLUTELY ESSENTIAL):
+        1. ACT AS AN EXPERT CHINESE TEACHER. The Chinese MUST be 100% natural, natively fluent, and logically coherent.
+        2. LOGIC FIRST: The dialogue/story MUST make perfect sense in reality. NEVER force words together if it creates a bizarre or illogical sentence (e.g., DO NOT write "我不看你的电脑在医院" - this is unacceptable). 
+        3. KEEP IT SIMPLE BUT NATURAL: If you cannot express a complex idea using only the allowed vocabulary, ABANDON that idea. Choose a simpler scenario that can be described naturally with the words you have.
+        4. YOU MUST INCLUDE PUNCTUATION (，。？！). Treat punctuation as a character with empty pinyin "".
+        5. Output JSON ARRAY only.
+        """
 
         if is_story:
             prompt = f"""
-            Act as a JSON API. Create a Chinese short story or paragraph (NOT a dialogue).
             {topic_instruction} Level: {level}. Keywords: {keywords}.
             
-            CRITICAL RULES:
-            1. The text MUST be broken down into exactly {num_lines} sentences.
-            2. ALL lines MUST use the exact role name "旁白" (Narrator).
-            3. YOU MUST INCLUDE PUNCTUATION (，。？！). Treat punctuation as a character with empty pinyin "".
-            4. Make it a simple, engaging, and cute story. Avoid repetitive boring sentences.
-            5. Output JSON ARRAY only.
+            {common_rules}
+            ADDITIONAL STORY RULES:
+            - The text MUST be broken down into exactly {num_lines} sentences.
+            - ALL lines MUST use the exact role name "旁白" (Narrator).
             {vocab_instruction}
             
             Format Example: 
@@ -175,14 +177,12 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
             """
         else:
             prompt = f"""
-            Act as a JSON API. Create a Chinese dialogue between '美美' (Female) and '大卫' (Male).
             {topic_instruction} Level: {level}. Keywords: {keywords}.
             
-            CRITICAL RULES:
-            1. Dialogue MUST be exactly {num_lines} lines long.
-            2. YOU MUST INCLUDE PUNCTUATION (，。？！). Treat punctuation as a character with empty pinyin "".
-            3. Create an engaging and unexpected conversation.
-            4. Output JSON ARRAY only.
+            {common_rules}
+            ADDITIONAL DIALOGUE RULES:
+            - Dialogue MUST be exactly {num_lines} lines long.
+            - Create an engaging and logical back-and-forth conversation between '美美' (Female) and '大卫' (Male).
             {vocab_instruction}
             
             Format Example: 
@@ -278,14 +278,14 @@ def main():
         selected_mode = st.radio(ui["mode"], [ui["dialogue"], ui["story"]], horizontal=True)
         is_story = (selected_mode == ui["story"])
 
-        topic = st.text_input(ui["topic"], "") # 默认留空，激发随机性
+        topic = st.text_input(ui["topic"], "") 
         level = st.selectbox(ui["level"], ["HSK 1", "HSK 2", "HSK 3"])
         
         unit_limit = 15
         if level == "HSK 1":
             unit_limit = st.slider(ui["unit"], min_value=1, max_value=15, value=15)
             
-        keys = st.text_input(ui["keywords"], "") # 默认留空
+        keys = st.text_input(ui["keywords"], "") 
         num_lines = st.slider(ui["lines"], min_value=4, max_value=12, value=8, step=1)
         
         if st.button(ui["gen_btn"]):
