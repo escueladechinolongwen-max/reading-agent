@@ -13,6 +13,7 @@ st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY")
 TARGET_MODEL = 'models/gemini-2.5-flash'
 
+# 📚 HSK 1 官方标准教材词汇表
 HSK1_VOCAB = {
     1: ["我", "你", "他", "她", "您", "们", "好", "再见"],
     2: ["谢谢", "不客气", "对不起", "没关系", "不"],
@@ -153,16 +154,28 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             You may also use the user-provided keywords: [{keywords}]. DO NOT use any other words.
             """
             
-        topic_instruction = f"Topic: {topic}." if topic else "Topic: Randomly select an interesting daily life scenario fitting the allowed vocabulary."
+        # 🌟 核心升级 1：动态场景分配！如果用户没给主题，强行根据滑块分配高级主题！
+        if not topic:
+            if unit_limit >= 14:
+                topic_instruction = "Topic: You MUST write about taking a taxi, taking an airplane, eating at a hotel/restaurant (饭店), or university life."
+            elif unit_limit >= 11:
+                topic_instruction = "Topic: You MUST write about the weather (raining, hot/cold), watching a movie, or seeing a doctor at the hospital."
+            elif unit_limit >= 8:
+                topic_instruction = "Topic: You MUST write about shopping for clothes/things, or drinking tea in the afternoon."
+            else:
+                topic_instruction = "Topic: A specific and interesting daily life scenario."
+        else:
+            topic_instruction = f"Topic: {topic}."
 
-        # 🌟 重新焊死 JSON 格式，绝不允许出现 KeyError!
+        # 🌟 核心升级 2：严打废话，强制使用高级词汇
         common_rules = f"""
-        CRITICAL FORMAT & NATIVE FLOW RULES:
-        1. NO CHINGLISH: NEVER literally translate English idioms. For an outro, just say "谢谢，再见！". 
-        2. QUANTITY RULE: You MUST use "两" (liǎng) for quantities (e.g., "两点", "两个"). NEVER use "二点".
-        3. EVASION RULE: If a sentence is grammatically difficult with only HSK1 words, ABANDON IT. Write simple, perfect sentences.
-        4. YOU MUST INCLUDE PUNCTUATION (，。？！). Treat punctuation as a character with empty pinyin "".
-        5. OUTPUT JSON ARRAY ONLY! YOU MUST USE EXACTLY THESE KEYS: "r" (Role), "t" (Text list), "tr_es" (Spanish translation), "tr_en" (English translation).
+        CRITICAL CONTENT & QUALITY RULES:
+        1. MAXIMIZE ADVANCED VOCABULARY: You MUST heavily use the most advanced words from the allowed list! Do NOT just repeat basic words like "我, 你, 好, 学校".
+        2. NO FILLER GREETINGS: Do NOT waste lines on boring greetings like "你好", "你呢", "谢谢", "很高兴认识你". Jump immediately into a rich, detailed plot or specific discussion!
+        3. NATURAL FLOW WITHOUT CHINGLISH: The text MUST be perfectly native. If you don't have the exact grammar word (e.g., missing "要" for time duration), break it into natural, shorter sentences (e.g. "我们坐出租车去饭店。二十分钟。").
+        4. QUANTITY RULE: Use "两" (liǎng) for quantities/time (e.g., "两点"). NEVER use "二点".
+        5. YOU MUST INCLUDE PUNCTUATION (，。？！).
+        6. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t", "tr_es", "tr_en".
         """
 
         if mode_type == "story":
@@ -171,12 +184,9 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             {common_rules}
             ADDITIONAL STORY RULES:
             - The text MUST be exactly {num_lines} sentences.
-            - ALL lines MUST use the exact role name "旁白" (Narrator) for the "r" key.
+            - ALL lines MUST use the exact role name "旁白" (Narrator).
             {vocab_instruction}
-            MANDATORY FORMAT: 
-            [
-                {{"r": "旁白", "t": [["这", "zhè"], ["是", "shì"], ["。", ""]], "tr_es": "Esto es.", "tr_en": "This is."}}
-            ]
+            MANDATORY FORMAT: [{{"r": "旁白", "t": [["这", "zhè"], ["是", "shì"], ["。", ""]], "tr_es": "Esto es.", "tr_en": "This is."}}]
             """
         elif mode_type == "podcast":
             prompt = f"""
@@ -184,13 +194,11 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             {common_rules}
             ADDITIONAL PODCAST RULES:
             - The text MUST be exactly {num_lines} lines long.
-            - Create an engaging PODCAST hosted by '美美' and '大卫'. Use these names for the "r" key.
-            - The first 1-2 lines MUST be a podcast intro. The last line MUST be an outro.
+            - Create an engaging PODCAST hosted by '美美' and '大卫'.
+            - The first 1 line MUST be a quick intro. The last line MUST be an outro (e.g., "谢谢大家，再见！").
+            - The middle lines MUST have high information density. Disagree with each other or discuss specific details.
             {vocab_instruction}
-            MANDATORY FORMAT: 
-            [
-                {{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}}
-            ]
+            MANDATORY FORMAT: [{{"r": "美美", "t": [["大", "dà"], ["家", "jiā"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola a todos!", "tr_en": "Hello everyone!"}}]
             """
         else: # dialogue
             prompt = f"""
@@ -198,12 +206,9 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             {common_rules}
             ADDITIONAL DIALOGUE RULES:
             - Dialogue MUST be exactly {num_lines} lines long.
-            - Create an engaging conversation between '美美' and '大卫'. Use these names for the "r" key.
+            - Create a dense, engaging conversation between '美美' and '大卫'.
             {vocab_instruction}
-            MANDATORY FORMAT: 
-            [
-                {{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}}
-            ]
+            MANDATORY FORMAT: [{{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}}]
             """
 
         response = model.generate_content(prompt, safety_settings=safety, generation_config=gen_config)
@@ -219,9 +224,7 @@ async def make_audio(data, filename):
     curr = 0.0
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(data):
-            # 🌟 加入防弹 Fallback：如果 AI 漏写了 "r"，默认分配给美美或旁白，绝不崩溃！
             role = line.get("r", "美美") 
-            
             if role == "大卫": voice = "zh-CN-YunxiNeural"
             elif role == "美美": voice = "zh-CN-XiaoxiaoNeural"
             else: voice = "zh-CN-XiaoyiNeural" 
@@ -248,9 +251,7 @@ def get_player_html(file_path, ts, mode_type):
     return f"""
     <div style="width:100%; display:flex; flex-direction:column; align-items:center; margin-bottom:20px; position:relative; z-index:50;">
         <audio id="p" controls src="data:audio/mp3;base64,{b64}" style="width:100%; max-width:400px; outline:none; margin-bottom:10px;"></audio>
-        
         <audio id="bgm" src="https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3" preload="auto" loop></audio>
-        
         <div style="display:flex; gap:10px;">
             <button class="speed-btn" onclick="document.getElementById('p').playbackRate=0.8">🐢 0.8x</button>
             <button class="speed-btn" onclick="document.getElementById('p').playbackRate=1.0">▶ 1.0x</button>
@@ -283,7 +284,6 @@ def get_player_html(file_path, ts, mode_type):
                             if (transEl) transEl.classList.add("active-story-trans");
                         }} else {{
                             el.classList.remove("active-meimei", "active-dawei");
-                            // 容错处理高亮
                             if (t.role === "大卫") el.classList.add("active-dawei");
                             else el.classList.add("active-meimei"); 
                         }}
@@ -381,7 +381,6 @@ def main():
             
         else:
             for idx, line in enumerate(st.session_state.current_data):
-                # 🌟 渲染时的容错处理
                 role = line.get("r", "美美")
                 trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
                 
@@ -391,7 +390,7 @@ def main():
                 elif role == "美美":
                     avatar_class = "cute-avatar"
                     avatar_char = "美"
-                else: # 防错，或者在 Podcast 模式下出现旁白
+                else: 
                     avatar_class = "cute-avatar avatar-narrator"
                     avatar_char = "🎙️" if current_view_mode == "podcast" else "📖"
 
