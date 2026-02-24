@@ -13,31 +13,53 @@ st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY")
 TARGET_MODEL = 'models/gemini-2.5-flash'
 
-# 🌍 语言包
+HSK1_VOCAB = {
+    1: ["我", "你", "他", "她", "您", "们", "好", "再见"],
+    2: ["谢谢", "不客气", "对不起", "没关系", "不"],
+    3: ["叫", "什么", "名字", "是", "老师", "吗", "学生", "人", "中国", "美国", "西班牙"],
+    4: ["谁", "的", "汉语", "语", "哪", "国", "呢", "同学", "朋友", "也"],
+    5: ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "家", "有", "口", "女儿", "几", "岁", "了", "今年", "多", "大"],
+    6: ["会", "说", "妈妈", "菜", "很", "好吃", "做", "写", "汉字", "字", "怎么", "读"],
+    7: ["请", "问", "今天", "号", "月", "星期", "昨天", "明天", "去", "学校", "看", "书"],
+    8: ["想", "喝", "茶", "吃", "米饭", "下午", "商店", "买", "个", "杯子", "这", "多少", "钱", "那", "块"],
+    9: ["小", "猫", "在", "那儿", "狗", "椅子", "下面", "哪儿", "工作", "儿子", "医院", "医生", "爸爸"],
+    10: ["桌子", "上", "电脑", "和", "本", "里", "前面", "后面", "没有", "能", "坐", "这儿"],
+    11: ["现在", "点", "分", "中午", "吃饭", "时候", "回", "电影", "住", "前", "北京"],
+    12: ["天气", "怎么样", "太", "热", "冷", "下雨", "下", "雨", "小姐", "来", "身体", "爱", "些", "水果", "水"],
+    13: ["喂", "也", "学习", "上午", "睡觉", "电视", "喜欢", "给", "打电话", "吧"],
+    14: ["东西", "一点儿", "苹果", "看见", "先生", "开", "车", "开车", "回来", "分钟", "后", "衣服", "漂亮", "啊", "少", "不少", "都"],
+    15: ["认识", "年", "大学", "饭店", "出租车", "一起", "高兴", "听", "飞机"]
+}
+
+# 🌍 语言包 (新增 Mode 选项)
 UI_TEXT = {
     "Español": { 
         "instr": "✍️ Escribe aquí para practicar...", 
         "gen_btn": "Generar Lección ✨", 
         "topic": "Tema", "level": "Nivel", "keywords": "Palabras",
         "lines": "Líneas (Longitud)",
+        "unit": "Límite de Unidad (HSK 1)",
         "loading": "✨ Creando magia...",
         "show_py": "Mostrar Pinyin", 
         "show_tr": "Mostrar Traducción",
-        "refresh": "Regenerar Audio" 
+        "refresh": "Regenerar Audio",
+        "mode": "Modo", "dialogue": "Diálogo 🗣️", "story": "Historia 📖"
     },
     "English": { 
         "instr": "✍️ Type here to practice...", 
         "gen_btn": "Generate Lesson ✨", 
         "topic": "Topic", "level": "Level", "keywords": "Keywords",
         "lines": "Lines (Length)",
+        "unit": "Unit Limit (HSK 1)",
         "loading": "✨ Creating magic...",
         "show_py": "Show Pinyin", 
         "show_tr": "Show Translation",
-        "refresh": "Regenerate Audio"
+        "refresh": "Regenerate Audio",
+        "mode": "Mode", "dialogue": "Dialogue 🗣️", "story": "Story 📖"
     }
 }
 
-# --- 2. 🎨 CSS 纯净锁定 & 像素级对齐 ---
+# --- 2. 🎨 CSS ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Nunito:wght@700&display=swap');
@@ -45,138 +67,117 @@ st.markdown("""
     html, body, [data-testid="stAppViewContainer"] {
         background-color: #FFFBF0 !important;
         font-family: 'Nunito', 'Noto Sans SC', sans-serif;
-        overflow: hidden !important; 
-        height: 100vh !important;
-        margin: 0; padding: 0;
+        overflow: hidden !important; height: 100vh !important; margin: 0; padding: 0;
     }
     
-    .block-container {
-        padding-top: 30px !important;
-        padding-bottom: 0px !important; 
-        max-width: 100% !important; /* 让内部元素自己决定宽度 */
-        height: 100vh !important;
-        overflow: hidden !important;
-    }
+    .block-container { padding-top: 30px !important; padding-bottom: 0px !important; max-width: 100% !important; height: 100vh !important; overflow: hidden !important; }
 
-    .main-title {
-        text-align: center; color: #5D5650; font-weight: 800; 
-        font-size: 2rem; letter-spacing: 1px; margin-bottom: 20px;
-        text-shadow: 2px 2px 0px #FFEaa7;
-    }
+    .main-title { text-align: center; color: #5D5650; font-weight: 800; font-size: 2rem; letter-spacing: 1px; margin-bottom: 20px; text-shadow: 2px 2px 0px #FFEaa7; }
 
-    /* 2. ☁️ 阅读卡片 (严格锁定尺寸) */
     .scroll-container {
-        background: #FFFFFF;
-        border-radius: 25px;
-        padding: 30px;
-        box-sizing: border-box; /* 确保 padding 包含在宽度内 */
-        box-shadow: 0 8px 20px rgba(235, 212, 180, 0.4);
-        border: 2px solid #FFF5E0;
-        
-        height: calc(100vh - 300px); 
-        overflow-y: auto !important; 
-        
-        display: flex; flex-direction: column; gap: 15px;
-        
-        /* 🚀 核心对齐公式 */
-        width: 90%; 
-        max-width: 800px; 
-        margin: 0 auto;
+        background: #FFFFFF; border-radius: 25px; padding: 30px; box-sizing: border-box; 
+        box-shadow: 0 8px 20px rgba(235, 212, 180, 0.4); border: 2px solid #FFF5E0;
+        height: calc(100vh - 300px); overflow-y: auto !important; 
+        display: flex; flex-direction: column; gap: 15px; width: 90%; max-width: 800px; margin: 0 auto;
     }
 
     .scroll-container::-webkit-scrollbar { width: 8px; }
     .scroll-container::-webkit-scrollbar-track { background: transparent; }
     .scroll-container::-webkit-scrollbar-thumb { background-color: #FFE5B4; border-radius: 10px; }
 
-    .cute-row {
-        display: flex; align-items: flex-start; padding: 15px;
-        border-bottom: 2px dashed #FFF0D4; transition: all 0.3s ease; border-radius: 12px;
-    }
+    .cute-row { display: flex; align-items: flex-start; padding: 15px; border-bottom: 2px dashed #FFF0D4; transition: all 0.3s ease; border-radius: 12px; }
 
     .cute-avatar {
         background-color: #FFD166; color: #fff; width: 40px; height: 40px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 12px; font-weight: bold; margin-right: 15px; flex-shrink: 0;
-        box-shadow: 2px 2px 0px #F4B860;
+        display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 15px; flex-shrink: 0; box-shadow: 2px 2px 0px #F4B860;
     }
     .avatar-dawei { background-color: #6FCF97; box-shadow: 2px 2px 0px #27AE60; }
+    /* 🌟 新增旁白头像颜色 (紫色) */
+    .avatar-narrator { background-color: #B28DFF; box-shadow: 2px 2px 0px #8758FF; font-size: 14px;}
 
     .cute-chinese { flex: 1; display: flex; flex-wrap: wrap; gap: 2px; align-items: flex-end; }
     ruby { font-size: 24px; font-weight: 700; color: #4A4A4A; ruby-position: under; line-height: 2.0; margin-right: 2px;}
     rt { font-size: 12px; color: #FF8BA7; font-weight: 600; font-family: sans-serif; }
 
-    .cute-trans {
-        width: 35%; padding-left: 20px; color: #AAB7B8; font-size: 0.9rem; font-style: italic;
-        border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4;
-    }
+    .cute-trans { width: 35%; padding-left: 20px; color: #AAB7B8; font-size: 0.9rem; font-style: italic; border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4; }
 
-    /* 3. 🚀 纯 CSS 终极输入框定位 (完美尺寸匹配) */
     section[data-testid="stMain"] div[data-testid="stTextInput"] {
-        position: fixed !important; 
-        bottom: 30px !important; 
-        left: 50% !important; 
-        transform: translateX(-50%) !important;
-        
-        /* 🚀 核心对齐公式 (必须和上方卡片一模一样) */
-        width: 90% !important; 
-        max-width: 800px !important; 
-        box-sizing: border-box !important;
-        
-        z-index: 99999 !important;
-        background-color: #FFFFFF !important;
-        padding: 5px 20px !important;
-        border-radius: 50px !important;
-        box-shadow: 0 10px 25px rgba(255, 159, 28, 0.2) !important;
-        border: 3px solid #FFE5B4 !important;
+        position: fixed !important; bottom: 30px !important; left: 50% !important; transform: translateX(-50%) !important;
+        width: 90% !important; max-width: 800px !important; box-sizing: border-box !important; z-index: 99999 !important;
+        background-color: #FFFFFF !important; padding: 5px 20px !important; border-radius: 50px !important; box-shadow: 0 10px 25px rgba(255, 159, 28, 0.2) !important; border: 3px solid #FFE5B4 !important;
     }
-
-    section[data-testid="stMain"] div[data-testid="stTextInput"] input {
-        border: none !important; background-color: transparent !important; 
-        font-size: 1.1rem !important; color: #5D5650 !important;
-        box-shadow: none !important; padding: 10px !important;
-    }
-    
-    section[data-testid="stMain"] div[data-testid="stTextInput"]:focus-within {
-        border-color: #FFD166 !important;
-        box-shadow: 0 10px 30px rgba(255, 159, 28, 0.3) !important;
-        transform: translateX(-50%) translateY(-2px) !important;
-        transition: all 0.3s ease;
-    }
+    section[data-testid="stMain"] div[data-testid="stTextInput"] input { border: none !important; background-color: transparent !important; font-size: 1.1rem !important; color: #5D5650 !important; box-shadow: none !important; padding: 10px !important; }
+    section[data-testid="stMain"] div[data-testid="stTextInput"]:focus-within { border-color: #FFD166 !important; box-shadow: 0 10px 30px rgba(255, 159, 28, 0.3) !important; transform: translateX(-50%) translateY(-2px) !important; transition: all 0.3s ease; }
     section[data-testid="stMain"] div[data-testid="stTextInput"] label { display: none !important; }
 
-    /* 控制开关 */
     .hide-pinyin rt { display: none !important; }
     .hide-trans .cute-trans { opacity: 0; }
     
-    /* 🌟 双色高亮效果 */
-    .active-meimei { background-color: #FFF8E1 !important; border-radius: 12px; transition: background 0.2s; } /* 奶油黄 */
-    .active-dawei { background-color: #E8F8F5 !important; border-radius: 12px; transition: background 0.2s; } /* 薄荷绿 */
+    .active-meimei { background-color: #FFF8E1 !important; border-radius: 12px; transition: background 0.2s; } 
+    .active-dawei { background-color: #E8F8F5 !important; border-radius: 12px; transition: background 0.2s; }
+    /* 🌟 新增旁白高亮颜色 */
+    .active-narrator { background-color: #F4EFFF !important; border-radius: 12px; transition: background 0.2s; }
 </style>
 """, unsafe_allow_html=True)
 
 # --- 3. AI 逻辑 ---
-def call_ai(topic, level, keywords, num_lines):
+def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
     if not MY_API_KEY: return None
     try:
         genai.configure(api_key=MY_API_KEY)
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
 
-        prompt = f"""
-        Act as a JSON API. Create a Chinese dialogue between '美美' (Female) and '大卫' (Male).
-        Topic: {topic}. Level: {level}. Keywords: {keywords}.
+        allowed_vocab = []
+        if level == "HSK 1":
+            for i in range(1, unit_limit + 1):
+                allowed_vocab.extend(HSK1_VOCAB.get(i, []))
         
-        CRITICAL RULES:
-        1. Dialogue MUST be exactly {num_lines} lines long.
-        2. YOU MUST INCLUDE PUNCTUATION (，。？！) in the text list.
-        3. Treat punctuation as a character with empty pinyin "".
-        4. Output JSON ARRAY only.
-        
-        Format Example: 
-        [
-            {{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}}
-        ]
-        """
+        vocab_instruction = ""
+        if allowed_vocab:
+            vocab_str = ", ".join(allowed_vocab)
+            vocab_instruction = f"""
+            STRICT VOCABULARY LIMIT: You MUST ONLY use Chinese words from this list: [{vocab_str}]. 
+            You may also use the user-provided keywords: [{keywords}].
+            DO NOT use any other Chinese vocabulary! Keep it extremely simple.
+            """
+
+        # 🌟 根据模式切换 Prompt (巧妙融入您的设计理念：注重故事性而非宏大叙事)
+        if is_story:
+            prompt = f"""
+            Act as a JSON API. Create a Chinese short story or paragraph (NOT a dialogue).
+            Topic: {topic}. Level: {level}. Keywords: {keywords}.
+            
+            CRITICAL RULES:
+            1. The text MUST be broken down into exactly {num_lines} sentences/lines.
+            2. ALL lines MUST use the exact role name "旁白" (Narrator).
+            3. YOU MUST INCLUDE PUNCTUATION (，。？！). Treat punctuation as a character with empty pinyin "".
+            4. Make it a simple, engaging, and cute story rather than a grand narrative.
+            5. Output JSON ARRAY only.
+            {vocab_instruction}
+            
+            Format Example: 
+            [
+                {{"r": "旁白", "t": [["这", "zhè"], ["是", "shì"], ["一", "yī"], ["个", "gè"], ["苹", "píng"], ["果", "guǒ"], ["。", ""]], "tr_es": "Esta es una manzana.", "tr_en": "This is an apple."}}
+            ]
+            """
+        else:
+            prompt = f"""
+            Act as a JSON API. Create a Chinese dialogue between '美美' (Female) and '大卫' (Male).
+            Topic: {topic}. Level: {level}. Keywords: {keywords}.
+            
+            CRITICAL RULES:
+            1. Dialogue MUST be exactly {num_lines} lines long.
+            2. YOU MUST INCLUDE PUNCTUATION (，。？！). Treat punctuation as a character with empty pinyin "".
+            3. Output JSON ARRAY only.
+            {vocab_instruction}
+            
+            Format Example: 
+            [
+                {{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}}
+            ]
+            """
+
         response = model.generate_content(prompt, safety_settings=safety)
         text = response.text.strip().replace("```json", "").replace("```", "")
         return json.loads(text)
@@ -190,9 +191,12 @@ async def make_audio(data, filename):
     curr = 0.0
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(data):
-            voice = "zh-CN-XiaoxiaoNeural" if line["r"] == "美美" else "zh-CN-YunxiNeural"
+            # 🌟 新增旁白专属声线 (Xiaoyi 是一个非常可爱的童声/轻快女声，适合讲故事)
+            if line["r"] == "大卫": voice = "zh-CN-YunxiNeural"
+            elif line["r"] == "美美": voice = "zh-CN-XiaoxiaoNeural"
+            else: voice = "zh-CN-XiaoyiNeural" # 旁白声音
+
             raw = "".join([p[0] for p in line.get("t", [])])
-            # ⏱️ 紧缩时间公式，消除延迟：0.25秒/字 + 0.35秒停顿
             dur = len(raw) * 0.25 + 0.35 
             ts.append({"start": curr, "end": curr + dur, "role": line["r"]})
             try:
@@ -205,7 +209,7 @@ async def make_audio(data, filename):
             curr += dur
     return ts
 
-# --- 5. 播放器 (🌟 增加双色识别) ---
+# --- 5. 播放器 ---
 def get_player_html(file_path, ts):
     with open(file_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
     return f"""
@@ -221,18 +225,13 @@ def get_player_html(file_path, ts):
                 const el = window.parent.document.getElementById('row-'+i);
                 if (el) {{
                     if (cur >= t.start && cur < t.end) {{
-                        // 判断角色，赋予不同颜色
-                        if (t.role === "美美") {{
-                            el.classList.add("active-meimei");
-                            el.classList.remove("active-dawei");
-                        }} else {{
-                            el.classList.add("active-dawei");
-                            el.classList.remove("active-meimei");
-                        }}
+                        el.classList.remove("active-meimei", "active-dawei", "active-narrator");
+                        if (t.role === "美美") el.classList.add("active-meimei");
+                        else if (t.role === "大卫") el.classList.add("active-dawei");
+                        else el.classList.add("active-narrator");
                         el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
                     }} else {{
-                        // 移除所有高亮
-                        el.classList.remove("active-meimei", "active-dawei");
+                        el.classList.remove("active-meimei", "active-dawei", "active-narrator");
                     }}
                 }}
             }});
@@ -249,14 +248,24 @@ def main():
         ui_lang = st.selectbox("Language", ["Español", "English"])
         ui = UI_TEXT[ui_lang]
         
+        # 🌟 新增：模式切换开关
+        selected_mode = st.radio(ui["mode"], [ui["dialogue"], ui["story"]], horizontal=True)
+        is_story = (selected_mode == ui["story"])
+
         topic = st.text_input(ui["topic"], "School")
         level = st.selectbox(ui["level"], ["HSK 1", "HSK 2", "HSK 3"])
+        
+        unit_limit = 15
+        if level == "HSK 1":
+            unit_limit = st.slider(ui["unit"], min_value=1, max_value=15, value=15)
+            
         keys = st.text_input(ui["keywords"], "书, 学习")
-        num_lines = st.slider(ui["lines"], min_value=4, max_value=12, value=10, step=2)
+        num_lines = st.slider(ui["lines"], min_value=4, max_value=12, value=8, step=1)
         
         if st.button(ui["gen_btn"]):
             with st.spinner(ui["loading"]):
-                res = call_ai(topic, level, keys, num_lines)
+                # 传入 is_story 参数
+                res = call_ai(topic, level, keys, num_lines, unit_limit, is_story)
                 if res:
                     st.session_state.current_data = res
                     st.session_state.audio_file = ""
@@ -288,19 +297,25 @@ def main():
         html_str = f'<div class="scroll-container {container_class}">'
         for idx, line in enumerate(st.session_state.current_data):
             trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
+            
+            # 🌟 头像逻辑：如果角色是“旁白”，使用紫色图标和书本符号
             avatar_class = "cute-avatar"
-            if line["r"] == "大卫": avatar_class += " avatar-dawei"
+            avatar_char = line["r"][0]
+            if line["r"] == "大卫": 
+                avatar_class += " avatar-dawei"
+            elif line["r"] == "旁白":
+                avatar_class += " avatar-narrator"
+                avatar_char = "📖" # 旁白显示一本书
             
             hanzi_html = ""
             for char, py in line.get("t", []):
                 hanzi_html += f'<ruby>{char}<rt>{py}</rt></ruby>'
             
-            html_str += f'<div class="cute-row" id="row-{idx}"><div class="{avatar_class}">{line["r"][0]}</div><div class="cute-chinese">{hanzi_html}</div><div class="cute-trans">{trans}</div></div>'
+            html_str += f'<div class="cute-row" id="row-{idx}"><div class="{avatar_class}">{avatar_char}</div><div class="cute-chinese">{hanzi_html}</div><div class="cute-trans">{trans}</div></div>'
         
         html_str += '</div>'
         st.markdown(html_str, unsafe_allow_html=True)
         
-        # 纯粹的输入框，大小会被纯 CSS 严格控制
         st.text_input("practice_input", label_visibility="collapsed", placeholder=ui["instr"])
 
     else:
