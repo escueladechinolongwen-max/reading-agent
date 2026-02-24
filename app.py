@@ -39,7 +39,7 @@ UI_TEXT = {
         "topic": "Tema", "level": "Nivel", "keywords": "Palabras",
         "lines": "Líneas (Max)",
         "unit": "Límite de Unidad (HSK 1)",
-        "loading": "✨ Creando magia...",
+        "loading": "✨ Creando magia... (Puede tardar)",
         "show_py": "Mostrar Pinyin", 
         "show_tr": "Mostrar Traducción",
         "refresh": "Regenerar Audio",
@@ -52,7 +52,7 @@ UI_TEXT = {
         "topic": "Topic", "level": "Level", "keywords": "Keywords",
         "lines": "Lines (Max)",
         "unit": "Unit Limit (HSK 1)",
-        "loading": "✨ Creating magic...",
+        "loading": "✨ Creating magic... (Takes longer)",
         "show_py": "Show Pinyin", 
         "show_tr": "Show Translation",
         "refresh": "Regenerate Audio",
@@ -170,15 +170,14 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
         else:
             topic_instruction = f"Topic: {topic}."
 
-        # 🌟 核心升级：弹性字数，宁缺毋滥 (Flexible Length Rule)
         common_rules = f"""
         CRITICAL GRAMMAR & QUALITY RULES:
-        1. LENGTH FLEXIBILITY: Your target is around {num_lines} lines. HOWEVER, if you are limited by HSK 1 vocabulary and run out of interesting things to say, DO NOT FORCE IT. You MUST end the story/dialogue naturally earlier (e.g., at 10 or 15 lines). Quality and density are much more important than reaching exact numbers. Never use filler words just to increase the line count!
-        2. NUMBER "20" BUG FIX: '20' MUST be written as "二十" (èr shí). NEVER say "两十". Use "两" (liǎng) ONLY for isolated quantities (e.g., "两点", "两分钟").
+        1. LENGTH FLEXIBILITY: Your target is around {num_lines} lines. HOWEVER, if you run out of interesting things to say due to limited HSK1 vocabulary, YOU MUST END EARLY (e.g. at 10 or 15 lines). Quality is more important than exact numbers.
+        2. NUMBER "20" BUG FIX: '20' MUST be written as "二十" (èr shí). NEVER say "两十".
         3. ASKING TIME: Use "几分钟？". NEVER say "多少分钟".
-        4. OUTRO: Do not literally translate "Thank you for listening". Just say "谢谢，再见！".
+        4. OUTRO: Do not translate "Thank you for listening". Just say "谢谢，再见！".
         5. YOU MUST INCLUDE PUNCTUATION (，。？！).
-        6. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t", "tr_es", "tr_en".
+        6. EVERY element in the "t" array MUST be exactly an array of two strings: ["Character", "pinyin"]. 
         """
 
         if mode_type == "story":
@@ -196,7 +195,7 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             ADDITIONAL PODCAST RULES:
             - Create an engaging PODCAST hosted by '美美' and '大卫'.
             - Object 1: Intro.
-            - The VERY LAST item MUST be exactly "谢谢大家，再见！" (Even if you end early!).
+            - The VERY LAST item MUST be exactly "谢谢大家，再见！".
             {vocab_instruction}
             """
         else: # dialogue
@@ -226,7 +225,16 @@ async def make_audio(data, filename):
             elif role == "美美": voice = "zh-CN-XiaoxiaoNeural"
             else: voice = "zh-CN-XiaoyiNeural" 
 
-            raw = "".join([p[0] for p in line.get("t", [])])
+            # 🚀 钢铁防弹修复 1：提取原始文字，就算结构崩了也不怕报错！
+            raw = ""
+            for item in line.get("t", []):
+                if isinstance(item, list) and len(item) > 0:
+                    raw += str(item[0])
+                elif isinstance(item, str):
+                    raw += item
+                    
+            if not raw: continue # 如果这行完全空了，直接跳过
+
             dur = len(raw) * 0.25 + 0.35 
             ts.append({"start": curr, "end": curr + dur, "role": role})
             try:
@@ -320,8 +328,6 @@ def main():
         if level == "HSK 1": unit_limit = st.slider(ui["unit"], min_value=1, max_value=15, value=15)
             
         keys = st.text_input(ui["keywords"], "") 
-        
-        # 将滑动条的文案更新为 Lines (Max)，提示用户这是一个最大值目标
         num_lines = st.slider(ui["lines"], min_value=4, max_value=24, value=12, step=2)
         
         if st.button(ui["gen_btn"]):
@@ -373,7 +379,18 @@ def main():
             trans_html = '<div class="story-trans">'
             for idx, line in enumerate(st.session_state.current_data):
                 trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
-                hanzi_html = "".join([f'<ruby>{char}<rt>{py}</rt></ruby>' for char, py in line.get("t", [])])
+                
+                # 🚀 钢铁防弹修复 2：拼音渲染容错！即使缺少元素也不报错。
+                hanzi_html = ""
+                for item in line.get("t", []):
+                    if isinstance(item, list):
+                        c = str(item[0]) if len(item) > 0 else ""
+                        p = str(item[1]) if len(item) > 1 else ""
+                    else:
+                        c = str(item)
+                        p = ""
+                    hanzi_html += f'<ruby>{c}<rt>{p}</rt></ruby>'
+                    
                 html_str += f'<span class="story-sentence" id="row-{idx}">{hanzi_html}</span> '
                 trans_html += f'<span class="story-trans-sentence" id="trans-{idx}">{idx+1}. {trans} </span>'
             html_str += f'</div>{trans_html}</div></div>'
@@ -393,7 +410,17 @@ def main():
                     avatar_class = "cute-avatar avatar-narrator"
                     avatar_char = "🎙️" if current_view_mode == "podcast" else "📖"
 
-                hanzi_html = "".join([f'<ruby>{char}<rt>{py}</rt></ruby>' for char, py in line.get("t", [])])
+                # 🚀 钢铁防弹修复 3：对话模式拼音渲染容错
+                hanzi_html = ""
+                for item in line.get("t", []):
+                    if isinstance(item, list):
+                        c = str(item[0]) if len(item) > 0 else ""
+                        p = str(item[1]) if len(item) > 1 else ""
+                    else:
+                        c = str(item)
+                        p = ""
+                    hanzi_html += f'<ruby>{c}<rt>{p}</rt></ruby>'
+                    
                 html_str += f'<div class="cute-row" id="row-{idx}"><div class="{avatar_class}">{avatar_char}</div><div class="cute-chinese">{hanzi_html}</div><div class="cute-trans">{trans}</div></div>'
         
         html_str += '</div>'
