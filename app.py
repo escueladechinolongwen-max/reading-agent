@@ -18,11 +18,11 @@ HSK1_VOCAB = {
     2: ["谢谢", "不客气", "对不起", "没关系", "不"],
     3: ["叫", "什么", "名字", "是", "老师", "吗", "学生", "人", "中国", "美国", "西班牙"],
     4: ["谁", "的", "汉语", "语", "哪", "国", "呢", "同学", "朋友", "也"],
-    5: ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "家", "有", "口", "女儿", "几", "岁", "了", "今年", "多", "大"],
+    5: ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "家", "有", "口", "女儿", "几", "岁", "了", "今年", "多", "大", "两", "猫", "狗"],
     6: ["会", "说", "妈妈", "菜", "很", "好吃", "做", "写", "汉字", "字", "怎么", "读"],
     7: ["请", "问", "今天", "号", "月", "星期", "昨天", "明天", "去", "学校", "看", "书"],
     8: ["想", "喝", "茶", "吃", "米饭", "下午", "商店", "买", "个", "杯子", "这", "多少", "钱", "那", "块"],
-    9: ["小", "猫", "在", "那儿", "狗", "椅子", "下面", "哪儿", "工作", "儿子", "医院", "医生", "爸爸"],
+    9: ["小", "在", "那儿", "椅子", "下面", "哪儿", "工作", "儿子", "医院", "医生", "爸爸"],
     10: ["桌子", "上", "电脑", "和", "本", "里", "前面", "后面", "没有", "能", "坐", "这儿"],
     11: ["现在", "点", "分", "中午", "吃饭", "时候", "回", "电影", "住", "前", "北京"],
     12: ["天气", "怎么样", "太", "热", "冷", "下雨", "下", "雨", "小姐", "来", "身体", "爱", "些", "水果", "水"],
@@ -98,7 +98,6 @@ st.markdown("""
     .story-trans { margin-top: 40px; padding-top: 25px; border-top: 2px dashed #FFF0D4; color: #94A3B8; font-size: 1rem; line-height: 1.8; text-align: justify; }
     .story-trans-sentence { transition: color 0.3s ease, background-color 0.3s ease; border-radius: 6px; padding: 2px 4px; margin-right: 5px; }
 
-    /* 🎙️ 播客专属封面卡片 */
     .podcast-card {
         background: linear-gradient(135deg, #FF9F1C 0%, #FFD166 100%);
         border-radius: 20px; padding: 20px; text-align: center; color: white;
@@ -156,14 +155,14 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             
         topic_instruction = f"Topic: {topic}." if topic else "Topic: Randomly select an interesting daily life scenario fitting the allowed vocabulary."
 
-        # 🌟 核心升级：强化避坑原则
+        # 🌟 核心语法修复：专治各种洋泾浜！
         common_rules = f"""
-        CRITICAL NATIVE FLOW & EVASION RULES:
-        1. LOGIC & NATIVE FLOW: The text MUST be 100% natural and natively fluent. NEVER force words together illogically.
-        2. EVASION RULE (避坑原则): If a concept requires vocabulary outside the allowed list to sound natural (e.g., you need "要" or "需要" to express time duration but don't have them), YOU MUST ABANDON that specific expression! Break it down into simpler, flawless sentences instead of creating weird Chinglish like "出租车能开二十分钟去饭店" (WRONG). Use "我们坐出租车去饭店。二十分钟。" (RIGHT).
-        3. ANTI-DILUTION: Do NOT use simple filler sentences like "你好", "谢谢" just to reach the required line count.
-        4. HIGH DENSITY: Because you must generate EXACTLY {num_lines} lines, introduce small conflicts or descriptive details to keep it rich.
-        5. YOU MUST INCLUDE PUNCTUATION (，。？！). Treat punctuation as a character with empty pinyin "".
+        CRITICAL GRAMMAR & NATIVE FLOW RULES:
+        1. LOGIC FIRST: The text MUST be 100% natural and natively fluent.
+        2. NO CHINGLISH (拒绝中式英语): NEVER literally translate English idioms. For example, for an outro, NEVER say "谢谢你们听我们". Just say "谢谢，再见！". 
+        3. QUANTITY & TIME RULE (时间与数量语法): You MUST use "两" (liǎng) for quantities and time (e.g., "两点", "两个"). NEVER use "二点" or "二个" - this is grammatically wrong! Use "二" ONLY for counting math numbers.
+        4. EVASION RULE: If a sentence is grammatically difficult with only HSK1 words, ABANDON IT. Write short, simple, perfect sentences.
+        5. YOU MUST INCLUDE PUNCTUATION (，。？！).
         6. Output JSON ARRAY only.
         """
 
@@ -175,7 +174,6 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             - The text MUST be exactly {num_lines} sentences.
             - ALL lines MUST use the exact role name "旁白" (Narrator).
             {vocab_instruction}
-            Format Example: [{{"r": "旁白", "t": [["这", "zhè"], ["是", "shì"], ["。", ""]], "tr_es": "Esto es.", "tr_en": "This is."}}]
             """
         elif mode_type == "podcast":
             prompt = f"""
@@ -184,11 +182,10 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             ADDITIONAL PODCAST RULES:
             - The text MUST be exactly {num_lines} lines long.
             - Create an engaging PODCAST SHOW hosted by '美美' and '大卫'.
-            - The first 1-2 lines MUST be a podcast intro (welcoming listeners).
-            - The last line MUST be a podcast outro (saying goodbye to listeners).
+            - The first 1-2 lines MUST be a podcast intro (welcoming listeners naturally using simple words).
+            - The last line MUST be a podcast outro (saying goodbye. JUST USE "谢谢大家，再见！" or "谢谢，再见！").
             - The middle lines should discuss the topic like radio hosts.
             {vocab_instruction}
-            Format Example: [{{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}}]
             """
         else: # dialogue
             prompt = f"""
@@ -198,7 +195,6 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             - Dialogue MUST be exactly {num_lines} lines long.
             - Create an engaging back-and-forth conversation between '美美' and '大卫'.
             {vocab_instruction}
-            Format Example: [{{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}}]
             """
 
         response = model.generate_content(prompt, safety_settings=safety, generation_config=gen_config)
@@ -231,14 +227,19 @@ async def make_audio(data, filename):
             curr += dur
     return ts
 
-# --- 5. 播放器 ---
+# --- 5. 播放器 (🌟 植入 BGM 氛围系统) ---
 def get_player_html(file_path, ts, mode_type):
     with open(file_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
+    is_podcast_str = "true" if mode_type == "podcast" else "false"
     is_story_str = "true" if mode_type == "story" else "false"
     
+    # 🌟 这里的 Pixabay 链接提供免费的 Lo-fi 背景节奏，只有在播客模式才会被 JS 触发
     return f"""
     <div style="width:100%; display:flex; flex-direction:column; align-items:center; margin-bottom:20px; position:relative; z-index:50;">
         <audio id="p" controls src="data:audio/mp3;base64,{b64}" style="width:100%; max-width:400px; outline:none; margin-bottom:10px;"></audio>
+        
+        <audio id="bgm" src="https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3" preload="auto" loop></audio>
+        
         <div style="display:flex; gap:10px;">
             <button class="speed-btn" onclick="document.getElementById('p').playbackRate=0.8">🐢 0.8x</button>
             <button class="speed-btn" onclick="document.getElementById('p').playbackRate=1.0">▶ 1.0x</button>
@@ -247,8 +248,19 @@ def get_player_html(file_path, ts, mode_type):
     </div>
     <script>
         const p = document.getElementById('p');
+        const bgm = document.getElementById('bgm');
         const ts = {json.dumps(ts)};
         const isStoryMode = {is_story_str};
+        const isPodcastMode = {is_podcast_str};
+        
+        // 如果是播客模式，绑定 BGM 联动，并将音量设为 12% (不喧宾夺主)
+        if (isPodcastMode && bgm) {{
+            bgm.volume = 0.12;
+            p.addEventListener('play', () => bgm.play().catch(e => console.log('BGM wait')));
+            p.addEventListener('pause', () => bgm.pause());
+            p.addEventListener('ended', () => bgm.pause());
+        }}
+        
         p.ontimeupdate = () => {{
             const cur = p.currentTime;
             ts.forEach((t, i) => {{
@@ -356,7 +368,7 @@ def main():
                 trans_html += f'<span class="story-trans-sentence" id="trans-{idx}">{idx+1}. {trans} </span>'
             html_str += f'</div>{trans_html}</div></div>'
             
-        else:
+        else: # dialogue & podcast
             for idx, line in enumerate(st.session_state.current_data):
                 trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
                 avatar_class = "cute-avatar avatar-dawei" if line["r"] == "大卫" else "cute-avatar"
