@@ -5,6 +5,7 @@ import os
 import time
 import base64
 import json
+import random
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold, GenerationConfig
 
@@ -13,7 +14,6 @@ st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY")
 TARGET_MODEL = 'models/gemini-2.5-flash'
 
-# 📚 HSK 1 官方标准教材词汇表
 HSK1_VOCAB = {
     1: ["我", "你", "他", "她", "您", "们", "好", "再见"],
     2: ["谢谢", "不客气", "对不起", "没关系", "不"],
@@ -37,7 +37,7 @@ UI_TEXT = {
         "instr": "✍️ Escribe aquí para practicar...", 
         "gen_btn": "Generar Lección ✨", 
         "topic": "Tema", "level": "Nivel", "keywords": "Palabras",
-        "lines": "Líneas (Longitud)",
+        "lines": "Líneas (Max)",
         "unit": "Límite de Unidad (HSK 1)",
         "loading": "✨ Creando magia...",
         "show_py": "Mostrar Pinyin", 
@@ -50,7 +50,7 @@ UI_TEXT = {
         "instr": "✍️ Type here to practice...", 
         "gen_btn": "Generate Lesson ✨", 
         "topic": "Topic", "level": "Level", "keywords": "Keywords",
-        "lines": "Lines (Length)",
+        "lines": "Lines (Max)",
         "unit": "Unit Limit (HSK 1)",
         "loading": "✨ Creating magic...",
         "show_py": "Show Pinyin", 
@@ -139,7 +139,7 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
         genai.configure(api_key=MY_API_KEY)
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
-        gen_config = GenerationConfig(temperature=0.75)
+        gen_config = GenerationConfig(temperature=0.8) 
 
         allowed_vocab = []
         if level == "HSK 1":
@@ -154,26 +154,29 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             You may also use the user-provided keywords: [{keywords}]. DO NOT use any other words.
             """
             
-        # 🌟 核心升级 1：动态场景分配！如果用户没给主题，强行根据滑块分配高级主题！
         if not topic:
+            topics_14_15 = ["去饭店吃中国菜", "坐出租车去医院", "大学里的好朋友", "坐飞机去北京", "在商店买漂亮的衣服"]
+            topics_11_13 = ["今天下雨，在家看电影", "打电话问天气", "去医院看医生", "中午吃米饭喝茶", "问现在几点了"]
+            topics_1_10 = ["桌子上面的电脑和书", "我喜欢我的小狗小猫", "在学校学习汉字", "去商店买杯子"]
+            
             if unit_limit >= 14:
-                topic_instruction = "Topic: You MUST write about taking a taxi, taking an airplane, eating at a hotel/restaurant (饭店), or university life."
+                chosen_topic = random.choice(topics_14_15 + topics_11_13)
             elif unit_limit >= 11:
-                topic_instruction = "Topic: You MUST write about the weather (raining, hot/cold), watching a movie, or seeing a doctor at the hospital."
-            elif unit_limit >= 8:
-                topic_instruction = "Topic: You MUST write about shopping for clothes/things, or drinking tea in the afternoon."
+                chosen_topic = random.choice(topics_11_13 + topics_1_10)
             else:
-                topic_instruction = "Topic: A specific and interesting daily life scenario."
+                chosen_topic = random.choice(topics_1_10)
+                
+            topic_instruction = f"Topic: You MUST strongly base the conversation on this specific scenario -> '{chosen_topic}'."
         else:
             topic_instruction = f"Topic: {topic}."
 
-        # 🌟 核心升级 2：严打废话，强制使用高级词汇
+        # 🌟 核心升级：弹性字数，宁缺毋滥 (Flexible Length Rule)
         common_rules = f"""
-        CRITICAL CONTENT & QUALITY RULES:
-        1. MAXIMIZE ADVANCED VOCABULARY: You MUST heavily use the most advanced words from the allowed list! Do NOT just repeat basic words like "我, 你, 好, 学校".
-        2. NO FILLER GREETINGS: Do NOT waste lines on boring greetings like "你好", "你呢", "谢谢", "很高兴认识你". Jump immediately into a rich, detailed plot or specific discussion!
-        3. NATURAL FLOW WITHOUT CHINGLISH: The text MUST be perfectly native. If you don't have the exact grammar word (e.g., missing "要" for time duration), break it into natural, shorter sentences (e.g. "我们坐出租车去饭店。二十分钟。").
-        4. QUANTITY RULE: Use "两" (liǎng) for quantities/time (e.g., "两点"). NEVER use "二点".
+        CRITICAL GRAMMAR & QUALITY RULES:
+        1. LENGTH FLEXIBILITY: Your target is around {num_lines} lines. HOWEVER, if you are limited by HSK 1 vocabulary and run out of interesting things to say, DO NOT FORCE IT. You MUST end the story/dialogue naturally earlier (e.g., at 10 or 15 lines). Quality and density are much more important than reaching exact numbers. Never use filler words just to increase the line count!
+        2. NUMBER "20" BUG FIX: '20' MUST be written as "二十" (èr shí). NEVER say "两十". Use "两" (liǎng) ONLY for isolated quantities (e.g., "两点", "两分钟").
+        3. ASKING TIME: Use "几分钟？". NEVER say "多少分钟".
+        4. OUTRO: Do not literally translate "Thank you for listening". Just say "谢谢，再见！".
         5. YOU MUST INCLUDE PUNCTUATION (，。？！).
         6. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t", "tr_es", "tr_en".
         """
@@ -183,32 +186,26 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
             {topic_instruction} Level: {level}. Keywords: {keywords}.
             {common_rules}
             ADDITIONAL STORY RULES:
-            - The text MUST be exactly {num_lines} sentences.
-            - ALL lines MUST use the exact role name "旁白" (Narrator).
+            - "r" MUST always be "旁白".
             {vocab_instruction}
-            MANDATORY FORMAT: [{{"r": "旁白", "t": [["这", "zhè"], ["是", "shì"], ["。", ""]], "tr_es": "Esto es.", "tr_en": "This is."}}]
             """
         elif mode_type == "podcast":
             prompt = f"""
             {topic_instruction} Level: {level}. Keywords: {keywords}.
             {common_rules}
             ADDITIONAL PODCAST RULES:
-            - The text MUST be exactly {num_lines} lines long.
             - Create an engaging PODCAST hosted by '美美' and '大卫'.
-            - The first 1 line MUST be a quick intro. The last line MUST be an outro (e.g., "谢谢大家，再见！").
-            - The middle lines MUST have high information density. Disagree with each other or discuss specific details.
+            - Object 1: Intro.
+            - The VERY LAST item MUST be exactly "谢谢大家，再见！" (Even if you end early!).
             {vocab_instruction}
-            MANDATORY FORMAT: [{{"r": "美美", "t": [["大", "dà"], ["家", "jiā"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola a todos!", "tr_en": "Hello everyone!"}}]
             """
         else: # dialogue
             prompt = f"""
             {topic_instruction} Level: {level}. Keywords: {keywords}.
             {common_rules}
             ADDITIONAL DIALOGUE RULES:
-            - Dialogue MUST be exactly {num_lines} lines long.
-            - Create a dense, engaging conversation between '美美' and '大卫'.
+            - Create a dense conversation between '美美' and '大卫'.
             {vocab_instruction}
-            MANDATORY FORMAT: [{{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}}]
             """
 
         response = model.generate_content(prompt, safety_settings=safety, generation_config=gen_config)
@@ -323,7 +320,9 @@ def main():
         if level == "HSK 1": unit_limit = st.slider(ui["unit"], min_value=1, max_value=15, value=15)
             
         keys = st.text_input(ui["keywords"], "") 
-        num_lines = st.slider(ui["lines"], min_value=4, max_value=12, value=10, step=1)
+        
+        # 将滑动条的文案更新为 Lines (Max)，提示用户这是一个最大值目标
+        num_lines = st.slider(ui["lines"], min_value=4, max_value=24, value=12, step=2)
         
         if st.button(ui["gen_btn"]):
             with st.spinner(ui["loading"]):
