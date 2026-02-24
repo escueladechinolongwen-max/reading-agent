@@ -73,13 +73,11 @@ st.markdown("""
 
     .main-title { text-align: center; color: #5D5650; font-weight: 800; font-size: 2rem; letter-spacing: 1px; margin-bottom: 20px; text-shadow: 2px 2px 0px #FFEaa7; }
 
-    /* 🚀 核心对齐修复 1：阅读卡片 */
     .scroll-container {
         background: #FFFFFF; border-radius: 25px; padding: 30px 40px; box-sizing: border-box; 
         box-shadow: 0 8px 20px rgba(235, 212, 180, 0.4); border: 2px solid #FFF5E0;
-        height: calc(100vh - 280px); overflow-y: auto !important; 
-        display: flex; flex-direction: column; gap: 15px; 
-        width: 90%; max-width: 800px; margin: 0 auto;
+        height: calc(100vh - 300px); overflow-y: auto !important; 
+        display: flex; flex-direction: column; gap: 15px; width: 90%; max-width: 800px; margin: 0 auto;
     }
 
     .scroll-container::-webkit-scrollbar { width: 8px; }
@@ -107,12 +105,21 @@ st.markdown("""
 
     .cute-trans { width: 35%; padding-left: 20px; color: #AAB7B8; font-size: 0.9rem; font-style: italic; border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4; }
 
-    /* 🚀 核心对齐修复 2：彻底放弃 fixed，直接用 margin 自动居中对齐 */
+    /* 隐藏原生音频播放器的自带速度菜单，保持界面干净 */
+    audio::-webkit-media-controls-enclosure { border-radius: 20px; }
+    audio::-internal-media-controls-overflow-button { display: none !important; }
+
+    /* 外置速度按钮样式 */
+    .speed-btn {
+        background: #FFFBF0; border: 2px solid #FFE5B4; border-radius: 15px; 
+        padding: 5px 15px; cursor: pointer; color: #5D5650; font-weight: 700; 
+        font-size: 0.9rem; transition: all 0.2s; outline: none;
+    }
+    .speed-btn:hover { background: #FFEaa7; transform: translateY(-2px); }
+
     section[data-testid="stMain"] div[data-testid="stTextInput"] {
-        margin: 20px auto 0 auto !important; /* 跟随上方元素，自动居中 */
-        width: 90% !important; max-width: 800px !important; /* 和阅读框参数完全一样 */
-        box-sizing: border-box !important; 
-        background-color: #FFFFFF !important; padding: 5px 20px !important; border-radius: 50px !important; box-shadow: 0 10px 25px rgba(255, 159, 28, 0.2) !important; border: 3px solid #FFE5B4 !important;
+        margin: 20px auto 0 auto !important; width: 90% !important; max-width: 800px !important; 
+        box-sizing: border-box !important; background-color: #FFFFFF !important; padding: 5px 20px !important; border-radius: 50px !important; box-shadow: 0 10px 25px rgba(255, 159, 28, 0.2) !important; border: 3px solid #FFE5B4 !important;
     }
     section[data-testid="stMain"] div[data-testid="stTextInput"] input { border: none !important; background-color: transparent !important; font-size: 1.1rem !important; color: #5D5650 !important; box-shadow: none !important; padding: 10px !important; }
     section[data-testid="stMain"] div[data-testid="stTextInput"]:focus-within { border-color: #FFD166 !important; box-shadow: 0 10px 30px rgba(255, 159, 28, 0.3) !important; transform: translateY(-2px) !important; transition: all 0.3s ease; }
@@ -128,7 +135,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. AI 逻辑 ---
+# --- 3. AI 逻辑 (🌟 加入反注水强制指令) ---
 def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
     if not MY_API_KEY: return None
     try:
@@ -136,7 +143,7 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
         
-        gen_config = GenerationConfig(temperature=0.7)
+        gen_config = GenerationConfig(temperature=0.75)
 
         allowed_vocab = []
         if level == "HSK 1":
@@ -152,13 +159,14 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
             DO NOT use any other words.
             """
             
-        topic_instruction = f"Topic: {topic}." if topic else "Topic: Randomly select a NATURAL and EVERYDAY life scenario (e.g., weather, eating out, taking a taxi, hobbies, talking about family) that fits the allowed vocabulary perfectly."
+        topic_instruction = f"Topic: {topic}." if topic else "Topic: Randomly select an interesting daily life scenario (e.g., shopping, taking a taxi, eating out) fitting the allowed vocabulary."
 
+        # 🌟 核心：反注水，强制维持信息密度
         common_rules = f"""
-        CRITICAL LOGIC & QUALITY RULES (ABSOLUTELY ESSENTIAL):
-        1. ACT AS AN EXPERT CHINESE TEACHER. The Chinese MUST be 100% natural, natively fluent, and logically coherent.
-        2. LOGIC FIRST: The dialogue/story MUST make perfect sense in reality. NEVER force words together if it creates a bizarre or illogical sentence (e.g., DO NOT write "我不看你的电脑在医院" - this is unacceptable). 
-        3. KEEP IT SIMPLE BUT NATURAL: If you cannot express a complex idea using only the allowed vocabulary, ABANDON that idea. Choose a simpler scenario that can be described naturally with the words you have.
+        CRITICAL LOGIC & DENSITY RULES:
+        1. LOGIC FIRST: The text MUST make perfect sense in reality. NEVER force words together illogically.
+        2. ANTI-DILUTION (NO FILLER): Do NOT use simple filler sentences like "你好", "谢谢", "再见", "你呢" just to reach the required line count.
+        3. HIGH DENSITY: Because you must generate EXACTLY {num_lines} lines, you MUST introduce a small problem, a detailed description, or a twist to keep the content rich and complex throughout all lines. Every sentence must add new semantic value!
         4. YOU MUST INCLUDE PUNCTUATION (，。？！). Treat punctuation as a character with empty pinyin "".
         5. Output JSON ARRAY only.
         """
@@ -185,12 +193,12 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
             {common_rules}
             ADDITIONAL DIALOGUE RULES:
             - Dialogue MUST be exactly {num_lines} lines long.
-            - Create an engaging and logical back-and-forth conversation between '美美' (Female) and '大卫' (Male).
+            - Create an engaging back-and-forth conversation between '美美' (Female) and '大卫' (Male).
             {vocab_instruction}
             
             Format Example: 
             [
-                {{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}}
+                {{"r": "美美", "t": [["你", "nǐ"], ["想", "xiǎng"], ["买", "mǎi"], ["什", "shén"], ["么", "me"], ["？", ""]], "tr_es": "¿Qué quieres comprar?", "tr_en": "What do you want to buy?"}}
             ]
             """
 
@@ -224,16 +232,22 @@ async def make_audio(data, filename):
             curr += dur
     return ts
 
-# --- 5. 播放器 ---
+# --- 5. 播放器 (🌟 外置速度按钮) ---
 def get_player_html(file_path, ts, is_story_mode):
     with open(file_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
     is_story_str = "true" if is_story_mode else "false"
     
-    # 🚀 速度按钮修复：去掉了高度限制 (height:40px)，并提升了 z-index，让菜单能完整弹出
     return f"""
-    <div style="width:100%; text-align:center; margin-bottom:15px; position:relative; z-index:50;">
-        <audio id="p" controls src="data:audio/mp3;base64,{b64}" style="width:100%; max-width:400px;"></audio>
+    <div style="width:100%; display:flex; flex-direction:column; align-items:center; margin-bottom:20px; position:relative; z-index:50;">
+        <audio id="p" controls src="data:audio/mp3;base64,{b64}" style="width:100%; max-width:400px; outline:none; margin-bottom:10px;"></audio>
+        
+        <div style="display:flex; gap:10px;">
+            <button class="speed-btn" onclick="document.getElementById('p').playbackRate=0.8">🐢 0.8x</button>
+            <button class="speed-btn" onclick="document.getElementById('p').playbackRate=1.0">▶ 1.0x</button>
+            <button class="speed-btn" onclick="document.getElementById('p').playbackRate=1.2">🐇 1.2x</button>
+        </div>
     </div>
+    
     <script>
         const p = document.getElementById('p');
         const ts = {json.dumps(ts)};
@@ -290,7 +304,7 @@ def main():
             unit_limit = st.slider(ui["unit"], min_value=1, max_value=15, value=15)
             
         keys = st.text_input(ui["keywords"], "") 
-        num_lines = st.slider(ui["lines"], min_value=4, max_value=12, value=8, step=1)
+        num_lines = st.slider(ui["lines"], min_value=4, max_value=12, value=10, step=1)
         
         if st.button(ui["gen_btn"]):
             with st.spinner(ui["loading"]):
@@ -320,7 +334,7 @@ def main():
             st.session_state.audio_file = fname
         
         if os.path.exists(st.session_state.audio_file):
-            st.components.v1.html(get_player_html(st.session_state.audio_file, st.session_state.ts, current_view_is_story), height=60)
+            st.components.v1.html(get_player_html(st.session_state.audio_file, st.session_state.ts, current_view_is_story), height=100)
 
         container_class = ""
         if not show_pinyin: container_class += " hide-pinyin"
