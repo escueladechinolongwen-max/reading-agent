@@ -42,7 +42,8 @@ UI_TEXT = {
         "show_py": "Mostrar Pinyin", 
         "show_tr": "Mostrar Traducción",
         "refresh": "Regenerar Audio",
-        "mode": "Modo", "dialogue": "Diálogo 🗣️", "story": "Historia 📖"
+        "mode": "Modo", "dialogue": "Diálogo 🗣️", "story": "Historia 📖", "podcast": "Podcast 🎧",
+        "dl_btn": "📥 Descargar Podcast (MP3)"
     },
     "English": { 
         "instr": "✍️ Type here to practice...", 
@@ -54,7 +55,8 @@ UI_TEXT = {
         "show_py": "Show Pinyin", 
         "show_tr": "Show Translation",
         "refresh": "Regenerate Audio",
-        "mode": "Mode", "dialogue": "Dialogue 🗣️", "story": "Story 📖"
+        "mode": "Mode", "dialogue": "Dialogue 🗣️", "story": "Story 📖", "podcast": "Podcast 🎧",
+        "dl_btn": "📥 Download Podcast (MP3)"
     }
 }
 
@@ -64,13 +66,11 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Nunito:wght@700&display=swap');
     
     html, body, [data-testid="stAppViewContainer"] {
-        background-color: #FFFBF0 !important;
-        font-family: 'Nunito', 'Noto Sans SC', sans-serif;
+        background-color: #FFFBF0 !important; font-family: 'Nunito', 'Noto Sans SC', sans-serif;
         overflow: hidden !important; height: 100vh !important; margin: 0; padding: 0;
     }
     
     .block-container { padding-top: 30px !important; padding-bottom: 0px !important; max-width: 100% !important; height: 100vh !important; overflow: hidden !important; }
-
     .main-title { text-align: center; color: #5D5650; font-weight: 800; font-size: 2rem; letter-spacing: 1px; margin-bottom: 20px; text-shadow: 2px 2px 0px #FFEaa7; }
 
     .scroll-container {
@@ -79,7 +79,6 @@ st.markdown("""
         height: calc(100vh - 300px); overflow-y: auto !important; 
         display: flex; flex-direction: column; gap: 15px; width: 90%; max-width: 800px; margin: 0 auto;
     }
-
     .scroll-container::-webkit-scrollbar { width: 8px; }
     .scroll-container::-webkit-scrollbar-track { background: transparent; }
     .scroll-container::-webkit-scrollbar-thumb { background-color: #FFE5B4; border-radius: 10px; }
@@ -91,7 +90,6 @@ st.markdown("""
     }
     .avatar-dawei { background-color: #6FCF97; box-shadow: 2px 2px 0px #27AE60; }
     .avatar-narrator { background-color: #B28DFF; box-shadow: 2px 2px 0px #8758FF; font-size: 14px;}
-
     .cute-chinese { flex: 1; display: flex; flex-wrap: wrap; gap: 2px; align-items: flex-end; }
     
     .story-content { padding: 10px 0; }
@@ -100,26 +98,26 @@ st.markdown("""
     .story-trans { margin-top: 40px; padding-top: 25px; border-top: 2px dashed #FFF0D4; color: #94A3B8; font-size: 1rem; line-height: 1.8; text-align: justify; }
     .story-trans-sentence { transition: color 0.3s ease, background-color 0.3s ease; border-radius: 6px; padding: 2px 4px; margin-right: 5px; }
 
+    /* 🎙️ 播客专属封面卡片 */
+    .podcast-card {
+        background: linear-gradient(135deg, #FF9F1C 0%, #FFD166 100%);
+        border-radius: 20px; padding: 20px; text-align: center; color: white;
+        box-shadow: 0 10px 20px rgba(255, 159, 28, 0.3); margin-bottom: 20px;
+    }
+    .podcast-title { font-size: 1.6rem; font-weight: 800; margin: 0; letter-spacing: 1px; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+    .podcast-subtitle { font-size: 0.9rem; opacity: 0.9; margin: 5px 0 0 0; }
+
     ruby { font-size: 24px; font-weight: 700; color: #4A4A4A; ruby-position: under; line-height: 2.0; margin-right: 2px;}
     rt { font-size: 12px; color: #FF8BA7; font-weight: 600; font-family: sans-serif; }
-
     .cute-trans { width: 35%; padding-left: 20px; color: #AAB7B8; font-size: 0.9rem; font-style: italic; border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4; }
 
-    /* 隐藏原生音频播放器的自带速度菜单，保持界面干净 */
     audio::-webkit-media-controls-enclosure { border-radius: 20px; }
     audio::-internal-media-controls-overflow-button { display: none !important; }
-
-    /* 外置速度按钮样式 */
-    .speed-btn {
-        background: #FFFBF0; border: 2px solid #FFE5B4; border-radius: 15px; 
-        padding: 5px 15px; cursor: pointer; color: #5D5650; font-weight: 700; 
-        font-size: 0.9rem; transition: all 0.2s; outline: none;
-    }
+    .speed-btn { background: #FFFBF0; border: 2px solid #FFE5B4; border-radius: 15px; padding: 5px 15px; cursor: pointer; color: #5D5650; font-weight: 700; font-size: 0.9rem; transition: all 0.2s; outline: none; }
     .speed-btn:hover { background: #FFEaa7; transform: translateY(-2px); }
 
     section[data-testid="stMain"] div[data-testid="stTextInput"] {
-        margin: 20px auto 0 auto !important; width: 90% !important; max-width: 800px !important; 
-        box-sizing: border-box !important; background-color: #FFFFFF !important; padding: 5px 20px !important; border-radius: 50px !important; box-shadow: 0 10px 25px rgba(255, 159, 28, 0.2) !important; border: 3px solid #FFE5B4 !important;
+        margin: 20px auto 0 auto !important; width: 90% !important; max-width: 800px !important; box-sizing: border-box !important; background-color: #FFFFFF !important; padding: 5px 20px !important; border-radius: 50px !important; box-shadow: 0 10px 25px rgba(255, 159, 28, 0.2) !important; border: 3px solid #FFE5B4 !important;
     }
     section[data-testid="stMain"] div[data-testid="stTextInput"] input { border: none !important; background-color: transparent !important; font-size: 1.1rem !important; color: #5D5650 !important; box-shadow: none !important; padding: 10px !important; }
     section[data-testid="stMain"] div[data-testid="stTextInput"]:focus-within { border-color: #FFD166 !important; box-shadow: 0 10px 30px rgba(255, 159, 28, 0.3) !important; transform: translateY(-2px) !important; transition: all 0.3s ease; }
@@ -127,7 +125,6 @@ st.markdown("""
 
     .hide-pinyin rt { display: none !important; }
     .hide-trans .cute-trans, .hide-trans .story-trans { display: none !important; }
-    
     .active-meimei { background-color: #FFF8E1 !important; border-radius: 12px; transition: background 0.2s; } 
     .active-dawei { background-color: #E8F8F5 !important; border-radius: 12px; transition: background 0.2s; }
     .active-story { background-color: #F4EFFF !important; } 
@@ -135,14 +132,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. AI 逻辑 (🌟 加入反注水强制指令) ---
-def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
+# --- 3. AI 逻辑 ---
+def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type):
     if not MY_API_KEY: return None
     try:
         genai.configure(api_key=MY_API_KEY)
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
-        
         gen_config = GenerationConfig(temperature=0.75)
 
         allowed_vocab = []
@@ -155,51 +151,54 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, is_story):
             vocab_str = ", ".join(allowed_vocab)
             vocab_instruction = f"""
             STRICT VOCABULARY LIMIT: You MUST ONLY use Chinese words from this list: [{vocab_str}]. 
-            You may also use the user-provided keywords: [{keywords}].
-            DO NOT use any other words.
+            You may also use the user-provided keywords: [{keywords}]. DO NOT use any other words.
             """
             
-        topic_instruction = f"Topic: {topic}." if topic else "Topic: Randomly select an interesting daily life scenario (e.g., shopping, taking a taxi, eating out) fitting the allowed vocabulary."
+        topic_instruction = f"Topic: {topic}." if topic else "Topic: Randomly select an interesting daily life scenario fitting the allowed vocabulary."
 
-        # 🌟 核心：反注水，强制维持信息密度
+        # 🌟 核心升级：强化避坑原则
         common_rules = f"""
-        CRITICAL LOGIC & DENSITY RULES:
-        1. LOGIC FIRST: The text MUST make perfect sense in reality. NEVER force words together illogically.
-        2. ANTI-DILUTION (NO FILLER): Do NOT use simple filler sentences like "你好", "谢谢", "再见", "你呢" just to reach the required line count.
-        3. HIGH DENSITY: Because you must generate EXACTLY {num_lines} lines, you MUST introduce a small problem, a detailed description, or a twist to keep the content rich and complex throughout all lines. Every sentence must add new semantic value!
-        4. YOU MUST INCLUDE PUNCTUATION (，。？！). Treat punctuation as a character with empty pinyin "".
-        5. Output JSON ARRAY only.
+        CRITICAL NATIVE FLOW & EVASION RULES:
+        1. LOGIC & NATIVE FLOW: The text MUST be 100% natural and natively fluent. NEVER force words together illogically.
+        2. EVASION RULE (避坑原则): If a concept requires vocabulary outside the allowed list to sound natural (e.g., you need "要" or "需要" to express time duration but don't have them), YOU MUST ABANDON that specific expression! Break it down into simpler, flawless sentences instead of creating weird Chinglish like "出租车能开二十分钟去饭店" (WRONG). Use "我们坐出租车去饭店。二十分钟。" (RIGHT).
+        3. ANTI-DILUTION: Do NOT use simple filler sentences like "你好", "谢谢" just to reach the required line count.
+        4. HIGH DENSITY: Because you must generate EXACTLY {num_lines} lines, introduce small conflicts or descriptive details to keep it rich.
+        5. YOU MUST INCLUDE PUNCTUATION (，。？！). Treat punctuation as a character with empty pinyin "".
+        6. Output JSON ARRAY only.
         """
 
-        if is_story:
+        if mode_type == "story":
             prompt = f"""
             {topic_instruction} Level: {level}. Keywords: {keywords}.
-            
             {common_rules}
             ADDITIONAL STORY RULES:
-            - The text MUST be broken down into exactly {num_lines} sentences.
+            - The text MUST be exactly {num_lines} sentences.
             - ALL lines MUST use the exact role name "旁白" (Narrator).
             {vocab_instruction}
-            
-            Format Example: 
-            [
-                {{"r": "旁白", "t": [["这", "zhè"], ["是", "shì"], ["一", "yī"], ["个", "gè"], ["苹", "píng"], ["果", "guǒ"], ["。", ""]], "tr_es": "Esta es una manzana.", "tr_en": "This is an apple."}}
-            ]
+            Format Example: [{{"r": "旁白", "t": [["这", "zhè"], ["是", "shì"], ["。", ""]], "tr_es": "Esto es.", "tr_en": "This is."}}]
             """
-        else:
+        elif mode_type == "podcast":
             prompt = f"""
             {topic_instruction} Level: {level}. Keywords: {keywords}.
-            
+            {common_rules}
+            ADDITIONAL PODCAST RULES:
+            - The text MUST be exactly {num_lines} lines long.
+            - Create an engaging PODCAST SHOW hosted by '美美' and '大卫'.
+            - The first 1-2 lines MUST be a podcast intro (welcoming listeners).
+            - The last line MUST be a podcast outro (saying goodbye to listeners).
+            - The middle lines should discuss the topic like radio hosts.
+            {vocab_instruction}
+            Format Example: [{{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}}]
+            """
+        else: # dialogue
+            prompt = f"""
+            {topic_instruction} Level: {level}. Keywords: {keywords}.
             {common_rules}
             ADDITIONAL DIALOGUE RULES:
             - Dialogue MUST be exactly {num_lines} lines long.
-            - Create an engaging back-and-forth conversation between '美美' (Female) and '大卫' (Male).
+            - Create an engaging back-and-forth conversation between '美美' and '大卫'.
             {vocab_instruction}
-            
-            Format Example: 
-            [
-                {{"r": "美美", "t": [["你", "nǐ"], ["想", "xiǎng"], ["买", "mǎi"], ["什", "shén"], ["么", "me"], ["？", ""]], "tr_es": "¿Qué quieres comprar?", "tr_en": "What do you want to buy?"}}
-            ]
+            Format Example: [{{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "¡Hola!", "tr_en": "Hello!"}}]
             """
 
         response = model.generate_content(prompt, safety_settings=safety, generation_config=gen_config)
@@ -232,33 +231,29 @@ async def make_audio(data, filename):
             curr += dur
     return ts
 
-# --- 5. 播放器 (🌟 外置速度按钮) ---
-def get_player_html(file_path, ts, is_story_mode):
+# --- 5. 播放器 ---
+def get_player_html(file_path, ts, mode_type):
     with open(file_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
-    is_story_str = "true" if is_story_mode else "false"
+    is_story_str = "true" if mode_type == "story" else "false"
     
     return f"""
     <div style="width:100%; display:flex; flex-direction:column; align-items:center; margin-bottom:20px; position:relative; z-index:50;">
         <audio id="p" controls src="data:audio/mp3;base64,{b64}" style="width:100%; max-width:400px; outline:none; margin-bottom:10px;"></audio>
-        
         <div style="display:flex; gap:10px;">
             <button class="speed-btn" onclick="document.getElementById('p').playbackRate=0.8">🐢 0.8x</button>
             <button class="speed-btn" onclick="document.getElementById('p').playbackRate=1.0">▶ 1.0x</button>
             <button class="speed-btn" onclick="document.getElementById('p').playbackRate=1.2">🐇 1.2x</button>
         </div>
     </div>
-    
     <script>
         const p = document.getElementById('p');
         const ts = {json.dumps(ts)};
         const isStoryMode = {is_story_str};
-        
         p.ontimeupdate = () => {{
             const cur = p.currentTime;
             ts.forEach((t, i) => {{
                 const el = window.parent.document.getElementById('row-'+i);
                 const transEl = window.parent.document.getElementById('trans-'+i);
-                
                 if (el) {{
                     if (cur >= t.start && cur < t.end) {{
                         if (isStoryMode) {{
@@ -293,32 +288,32 @@ def main():
         ui_lang = st.selectbox("Language", ["Español", "English"])
         ui = UI_TEXT[ui_lang]
         
-        selected_mode = st.radio(ui["mode"], [ui["dialogue"], ui["story"]], horizontal=True)
-        is_story = (selected_mode == ui["story"])
+        selected_mode_label = st.radio(ui["mode"], [ui["dialogue"], ui["story"], ui["podcast"]], horizontal=True)
+        if selected_mode_label == ui["story"]: mode_type = "story"
+        elif selected_mode_label == ui["podcast"]: mode_type = "podcast"
+        else: mode_type = "dialogue"
 
         topic = st.text_input(ui["topic"], "") 
         level = st.selectbox(ui["level"], ["HSK 1", "HSK 2", "HSK 3"])
         
         unit_limit = 15
-        if level == "HSK 1":
-            unit_limit = st.slider(ui["unit"], min_value=1, max_value=15, value=15)
+        if level == "HSK 1": unit_limit = st.slider(ui["unit"], min_value=1, max_value=15, value=15)
             
         keys = st.text_input(ui["keywords"], "") 
         num_lines = st.slider(ui["lines"], min_value=4, max_value=12, value=10, step=1)
         
         if st.button(ui["gen_btn"]):
             with st.spinner(ui["loading"]):
-                res = call_ai(topic, level, keys, num_lines, unit_limit, is_story)
+                res = call_ai(topic, level, keys, num_lines, unit_limit, mode_type)
                 if res:
                     st.session_state.current_data = res
                     st.session_state.audio_file = ""
-                    st.session_state.rendered_mode_is_story = is_story 
+                    st.session_state.rendered_mode = mode_type 
                     st.rerun()
         
         st.divider()
         show_pinyin = st.toggle(ui["show_py"], value=True)
         show_trans = st.toggle(ui["show_tr"], value=True)
-        
         if st.button(f"🔄 {ui['refresh']}"):
             st.session_state.audio_file = ""
             st.rerun()
@@ -326,56 +321,50 @@ def main():
     st.markdown('<div class="main-title">Reading Assistant Pro</div>', unsafe_allow_html=True)
 
     if st.session_state.current_data:
-        current_view_is_story = st.session_state.get("rendered_mode_is_story", is_story)
+        current_view_mode = st.session_state.get("rendered_mode", mode_type)
         
         if not st.session_state.audio_file:
             fname = f"audio_{int(time.time())}.mp3"
             st.session_state.ts = asyncio.run(make_audio(st.session_state.current_data, fname))
             st.session_state.audio_file = fname
         
+        if current_view_mode == "podcast":
+            st.markdown('<div class="podcast-card"><p class="podcast-title">🎙️ 中文学习播客 (Chinese Learning Podcast)</p><p class="podcast-subtitle">Escucha y aprende</p></div>', unsafe_allow_html=True)
+            
         if os.path.exists(st.session_state.audio_file):
-            st.components.v1.html(get_player_html(st.session_state.audio_file, st.session_state.ts, current_view_is_story), height=100)
+            st.components.v1.html(get_player_html(st.session_state.audio_file, st.session_state.ts, current_view_mode), height=100)
+            
+            if current_view_mode == "podcast":
+                with open(st.session_state.audio_file, "rb") as file:
+                    col1, col2, col3 = st.columns([1, 2, 1])
+                    with col2:
+                        st.download_button(label=ui["dl_btn"], data=file, file_name="chinese_podcast.mp3", mime="audio/mpeg", use_container_width=True)
 
-        container_class = ""
+        container_class = "scroll-container"
         if not show_pinyin: container_class += " hide-pinyin"
         if not show_trans: container_class += " hide-trans"
 
-        html_str = f'<div class="scroll-container {container_class}">'
+        html_str = f'<div class="{container_class}">'
         
-        if current_view_is_story:
-            html_str += '<div class="story-content">'
-            chinese_html = '<div class="story-chinese">'
+        if current_view_mode == "story":
+            html_str += '<div class="story-content"><div class="story-chinese">'
             trans_html = '<div class="story-trans">'
-            
             for idx, line in enumerate(st.session_state.current_data):
                 trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
-                
-                hanzi_html = ""
-                for char, py in line.get("t", []):
-                    hanzi_html += f'<ruby>{char}<rt>{py}</rt></ruby>'
-                
-                chinese_html += f'<span class="story-sentence" id="row-{idx}">{hanzi_html}</span> '
+                hanzi_html = "".join([f'<ruby>{char}<rt>{py}</rt></ruby>' for char, py in line.get("t", [])])
+                html_str += f'<span class="story-sentence" id="row-{idx}">{hanzi_html}</span> '
                 trans_html += f'<span class="story-trans-sentence" id="trans-{idx}">{idx+1}. {trans} </span>'
-                
-            chinese_html += '</div>'
-            trans_html += '</div>'
-            html_str += chinese_html + trans_html + '</div>'
+            html_str += f'</div>{trans_html}</div></div>'
             
         else:
             for idx, line in enumerate(st.session_state.current_data):
                 trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
-                avatar_class = "cute-avatar"
-                if line["r"] == "大卫": avatar_class += " avatar-dawei"
-                
-                hanzi_html = ""
-                for char, py in line.get("t", []):
-                    hanzi_html += f'<ruby>{char}<rt>{py}</rt></ruby>'
-                
+                avatar_class = "cute-avatar avatar-dawei" if line["r"] == "大卫" else "cute-avatar"
+                hanzi_html = "".join([f'<ruby>{char}<rt>{py}</rt></ruby>' for char, py in line.get("t", [])])
                 html_str += f'<div class="cute-row" id="row-{idx}"><div class="{avatar_class}">{line["r"][0]}</div><div class="cute-chinese">{hanzi_html}</div><div class="cute-trans">{trans}</div></div>'
         
         html_str += '</div>'
         st.markdown(html_str, unsafe_allow_html=True)
-        
         st.text_input("practice_input", label_visibility="collapsed", placeholder=ui["instr"])
 
     else:
