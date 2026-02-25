@@ -36,7 +36,7 @@ HSK1_VOCAB = {
 UI_TEXT = {
     "Español": { 
         "instr": "✍️ Escribe aquí para practicar...", "gen_btn": "Generar Lección ✨", 
-        "topic": "Tema", "level": "Nivel", "keywords": "Palabras", "lines": "Líneas (Max)",
+        "topic": "Tema", "level": "Nivel", "keywords": "Palabras", "lines": "Líneas (Exactas)",
         "unit": "Límite de Unidad (HSK 1)", "loading": "✨ Creando magia... (Puede tardar)",
         "show_py": "Mostrar Pinyin", "show_tr": "Mostrar Traducción", "refresh": "Regenerar Audio",
         "mode": "Modo", "dialogue": "Diálogo 🗣️", "story": "Historia 📖", "podcast": "Podcast 🎧",
@@ -44,7 +44,7 @@ UI_TEXT = {
     },
     "English": { 
         "instr": "✍️ Type here to practice...", "gen_btn": "Generate Lesson ✨", 
-        "topic": "Topic", "level": "Level", "keywords": "Keywords", "lines": "Lines (Max)",
+        "topic": "Topic", "level": "Level", "keywords": "Keywords", "lines": "Lines (Exact)",
         "unit": "Unit Limit (HSK 1)", "loading": "✨ Creating magic... (Takes longer)",
         "show_py": "Show Pinyin", "show_tr": "Show Translation", "refresh": "Regenerate Audio",
         "mode": "Mode", "dialogue": "Dialogue 🗣️", "story": "Story 📖", "podcast": "Podcast 🎧",
@@ -99,63 +99,60 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         genai.configure(api_key=MY_API_KEY)
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
-        gen_config = GenerationConfig(temperature=0.8) 
+        gen_config = GenerationConfig(temperature=0.85)
 
         allowed_vocab = []
         if level == "HSK 1":
             for i in range(1, unit_limit + 1): allowed_vocab.extend(HSK1_VOCAB.get(i, []))
         
-        vocab_instruction = f"STRICT VOCABULARY LIMIT: You MUST ONLY use Chinese words from this list: [{', '.join(allowed_vocab)}]. DO NOT use any other Chinese words!" if allowed_vocab else ""
+        vocab_instruction = f"STRICT VOCABULARY LIMIT: You MUST ONLY use Chinese words from this list: [{', '.join(allowed_vocab)}]. DO NOT use any other words." if allowed_vocab else ""
             
         if not topic:
             if mode_type == "story":
-                topics_pool = ["大卫的大学生活", "美美的一天", "我的漂亮衣服和我的家", "昨天晚上的中国电影", "下雨天在家里看书", "我的小猫和小狗"]
+                topics_pool = ["大卫的一天", "美美去医院看医生", "昨天晚上的电影和晚饭", "下雨天不想去学校"]
             else:
-                topics_pool = ["去饭店吃中国菜", "坐出租车去医院", "大学里的好朋友", "坐飞机去北京", "在商店买漂亮的衣服", "打电话问天气", "中午吃米饭喝茶", "问现在几点了"]
+                topics_pool = ["计划去饭店吃饭但下雨了", "坐出租车去买漂亮衣服", "周末上午喝茶看书", "打电话讨论明天去哪儿"]
             topic_instruction = f"Topic: '{random.choice(topics_pool)}'."
         else:
             topic_instruction = f"Topic: {topic}."
 
+        # 🌟 强制拒绝偷懒指令
         common_rules = f"""
-        CRITICAL FORMAT RULES:
-        1. PUNCTUATION IS MANDATORY: You MUST include commas (，) and periods (。). Format them with empty pinyin like this: ["，", ""]. Do NOT omit punctuation!
-        2. NO CHINGLISH: Never literally translate idioms. 
-        3. EXACT ROLES: For the "r" key, you MUST use EXACTLY "美美", "大卫", "旁白", or "主持人".
-        4. OUTPUT JSON ARRAY ONLY! MUST USE KEYS: "r", "t", "tr_es", "tr_en".
+        CRITICAL RULES (DO NOT IGNORE):
+        1. STRICT LENGTH: You MUST generate EXACTLY {num_lines} objects in your JSON array. NOT LESS. DO NOT stop early!
+        2. NO LAZY WRITING: You MUST progress the story to keep it interesting. Change the location, time, or conflict halfway through!
+        3. QUANTITY: Use "两" (liǎng) for quantities (e.g., "两个"). NEVER say "两十", use "二十" (èr shí) for 20.
+        4. EXACT ROLES: "r" MUST be exactly "美美", "大卫", "旁白", or "主持人".
+        5. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t" (list of EXACTLY 2-item lists: [["字", "pinyin"]]), "tr_es", "tr_en".
         """
 
         if mode_type == "story":
             prompt = f"""
             {topic_instruction} Level: {level}.
-            Create a descriptive Chinese story (narrative, NO dialogues). Max {num_lines} sentences.
+            Create a descriptive Chinese story. EXACTLY {num_lines} sentences.
             - "r" MUST always be "旁白".
             {vocab_instruction}
             {common_rules}
-            Format Example: [{{"r": "旁白", "t": [["今", "jīn"], ["天", "tiān"], ["，", ""]], "tr_es": "Hoy,", "tr_en": "Today,"}}]
             """
         elif mode_type == "podcast":
-            intro_example = "Welcome to our Chinese podcast! Today we will talk about..." if ui_lang == "English" else "¡Bienvenidos a nuestro podcast de chino! Hoy hablaremos de..."
-            outro_example = "Thanks for listening! See you next time!" if ui_lang == "English" else "¡Gracias por escucharnos! ¡Hasta la próxima!"
+            # 🌟 赋予主持人强烈的活力与激情！
+            intro_example = "Hey guys! 🎉 Welcome back to our awesome Chinese learning podcast! Today we have a super fun topic..." if ui_lang == "English" else "¡Hola a todos! 🎉 ¡Bienvenidos de nuevo a nuestro increíble podcast de chino! Hoy tenemos una historia súper interesante..."
+            outro_example = "That's all for today! Thanks for hanging out with us, see you next time! Bye! 👋" if ui_lang == "English" else "¡Eso es todo por hoy chicos! ¡Gracias por escuchar, hasta la próxima! 👋"
             
             prompt = f"""
             {topic_instruction} Level: {level}.
-            Create a professional bilingual PODCAST. Max {num_lines} lines.
-            - Lines 1-2 (Intro): "r" MUST be "主持人" (Host). The content MUST be entirely in {ui_lang} (e.g. "{intro_example}"). Put the {ui_lang} sentence in the 't' array without pinyin.
-            - Middle Lines (Dialogue): "r" MUST alternate between "美美" and "大卫". Strict HSK {level} Chinese only! {vocab_instruction}
-            - Last Line (Outro): "r" MUST be "主持人". The content MUST be entirely in {ui_lang} (e.g. "{outro_example}").
+            Create a professional bilingual PODCAST. You MUST generate EXACTLY {num_lines} lines total.
+            - Line 1 (Intro): "r" MUST be "主持人". The content MUST be entirely in {ui_lang} (e.g. "{intro_example}"). The Host MUST sound extremely energetic, friendly, and enthusiastic like a popular YouTuber! Use exclamation marks! NO PINYIN.
+            - Lines 2 to {num_lines - 1} (Dialogue): "r" MUST alternate between "美美" and "大卫". Strict HSK {level} Chinese only! {vocab_instruction}. Discuss the topic deeply.
+            - Line {num_lines} (Outro): "r" MUST be "主持人". The content MUST be entirely in {ui_lang} (e.g. "{outro_example}"). Keep it highly energetic! NO PINYIN.
             {common_rules}
-            Format Example: 
-            [
-                {{"r": "主持人", "t": [["{intro_example}", ""]], "tr_es": "...", "tr_en": "..."}},
-                {{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "...", "tr_en": "..."}}
-            ]
             """
         else: # dialogue
-            # 🚨 修复此处的致命遗漏！加上 Format Example
             prompt = f"""
             {topic_instruction} Level: {level}.
-            Create a dense conversation between '美美' and '大卫'. Max {num_lines} lines.
+            Create a rich, continuous conversation. EXACTLY {num_lines} lines.
             - "r" MUST alternate between "美美" and "大卫".
+            - Introduce a small problem or change of plans to keep the {num_lines} lines engaging!
             {vocab_instruction}
             {common_rules}
             Format Example: 
@@ -182,21 +179,27 @@ async def make_audio(data, filename, ui_lang):
         for i, line in enumerate(data):
             role = line.get("r", "美美") 
             
+            # 🌟 最具活力的电台声线配置！
             if role == "大卫": voice = "zh-CN-YunxiNeural"
             elif role == "美美": voice = "zh-CN-XiaoxiaoNeural"
             elif role == "旁白": voice = "zh-CN-XiaoyiNeural"
-            elif role == "主持人":
-                voice = "es-ES-ElviraNeural" if ui_lang == "Español" else "en-US-AriaNeural"
+            elif role == "主持人": 
+                # Nancy 极具表现力，Dalia 是非常热情温暖的拉美西语
+                voice = "es-MX-DaliaNeural" if ui_lang == "Español" else "en-US-NancyNeural"
             else: voice = "zh-CN-XiaoxiaoNeural"
 
             raw = "".join([str(item[0]) if isinstance(item, list) else str(item) for item in line.get("t", [])])
             if not raw: continue
             
             dur = len(raw) * 0.25 + 0.35 
-            if role == "主持人": dur = len(raw) * 0.08 + 1.0 
+            
+            # 🌟 让主持人的语速变得更紧凑明快，充满能量
+            if role == "主持人": 
+                dur = len(raw) * 0.065 + 0.6 
             
             ts.append({"start": curr, "end": curr + dur, "role": role})
             try:
+                # 可以通过 prosody 标签在未来进一步给声音打鸡血，目前原生高能声线已经很好了
                 comm = edge_tts.Communicate(raw, voice)
                 temp_f = f"tmp_{int(time.time())}_{i}.mp3"
                 await comm.save(temp_f)
@@ -263,6 +266,7 @@ def main():
         mode_type = "story" if mode_label == ui["story"] else ("podcast" if mode_label == ui["podcast"] else "dialogue")
         topic, level = st.text_input(ui["topic"], ""), st.selectbox(ui["level"], ["HSK 1", "HSK 2", "HSK 3"])
         unit_limit = st.slider(ui["unit"], 1, 15, 15) if level == "HSK 1" else 15
+        
         keys, num_lines = st.text_input(ui["keywords"], ""), st.slider(ui["lines"], 4, 24, 12, 2)
         
         if st.button(ui["gen_btn"]):
@@ -313,7 +317,7 @@ def main():
                     char = "📖"
                     
                 hanzi = "".join([f'<ruby>{str(it[0]) if isinstance(it,list) else str(it)}<rt>{it[1] if isinstance(it,list) and len(it)>1 else ""}</rt></ruby>' for it in line.get("t", [])])
-                html_str += f'<div class="cute-row" id="row-{idx}"><div class="cute-avatar {avatar}">{char}</div><div class="cute-chinese">{hanzi}</div><div class="cute-trans">{line.get("tr_es", "")}</div></div>'
+                html_str += f'<div class="cute-row" id="row-{idx}"><div class="{avatar} cute-avatar">{char}</div><div class="cute-chinese">{hanzi}</div><div class="cute-trans">{line.get("tr_es", "")}</div></div>'
         st.markdown(html_str + '</div>', unsafe_allow_html=True)
         st.text_input("practice", label_visibility="collapsed", placeholder=ui["instr"])
     else: st.info("👈 Please enter settings and click Generate")
