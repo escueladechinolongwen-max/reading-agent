@@ -15,7 +15,6 @@ st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY")
 TARGET_MODEL = 'models/gemini-2.5-flash' 
 
-# 📚 HSK 1 官方标准教材词汇表
 HSK1_VOCAB = {
     1: ["我", "你", "他", "她", "您", "们", "好", "再见"],
     2: ["谢谢", "不客气", "对不起", "没关系", "不"],
@@ -93,7 +92,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. AI 逻辑 (🌟 彻底分离模式与引入双语主持人) ---
+# --- 3. AI 逻辑 ---
 def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
     if not MY_API_KEY: return None
     try:
@@ -108,7 +107,6 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         
         vocab_instruction = f"STRICT VOCABULARY LIMIT: You MUST ONLY use Chinese words from this list: [{', '.join(allowed_vocab)}]. DO NOT use any other Chinese words!" if allowed_vocab else ""
             
-        # 🌟 修复 2：彻底分离 Story 和 Dialogue 的随机主题，防止角色错乱
         if not topic:
             if mode_type == "story":
                 topics_pool = ["大卫的大学生活", "美美的一天", "我的漂亮衣服和我的家", "昨天晚上的中国电影", "下雨天在家里看书", "我的小猫和小狗"]
@@ -118,13 +116,12 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         else:
             topic_instruction = f"Topic: {topic}."
 
-        # 🌟 修复 1：强制加入标点符号，严格锁定角色名字
         common_rules = f"""
         CRITICAL FORMAT RULES:
         1. PUNCTUATION IS MANDATORY: You MUST include commas (，) and periods (。). Format them with empty pinyin like this: ["，", ""]. Do NOT omit punctuation!
         2. NO CHINGLISH: Never literally translate idioms. 
-        3. EXACT ROLES: For the "r" key, you MUST use EXACTLY "美美", "大卫", "旁白", or "主持人". Do NOT use English names.
-        4. OUTPUT JSON ARRAY ONLY!
+        3. EXACT ROLES: For the "r" key, you MUST use EXACTLY "美美", "大卫", "旁白", or "主持人".
+        4. OUTPUT JSON ARRAY ONLY! MUST USE KEYS: "r", "t", "tr_es", "tr_en".
         """
 
         if mode_type == "story":
@@ -137,15 +134,14 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             Format Example: [{{"r": "旁白", "t": [["今", "jīn"], ["天", "tiān"], ["，", ""]], "tr_es": "Hoy,", "tr_en": "Today,"}}]
             """
         elif mode_type == "podcast":
-            # 🌟 修复 3：专业双语播客！主持人完全说 UI 语言！
             intro_example = "Welcome to our Chinese podcast! Today we will talk about..." if ui_lang == "English" else "¡Bienvenidos a nuestro podcast de chino! Hoy hablaremos de..."
             outro_example = "Thanks for listening! See you next time!" if ui_lang == "English" else "¡Gracias por escucharnos! ¡Hasta la próxima!"
             
             prompt = f"""
             {topic_instruction} Level: {level}.
-            Create a professional bilingual language learning PODCAST. Max {num_lines} lines.
+            Create a professional bilingual PODCAST. Max {num_lines} lines.
             - Lines 1-2 (Intro): "r" MUST be "主持人" (Host). The content MUST be entirely in {ui_lang} (e.g. "{intro_example}"). Put the {ui_lang} sentence in the 't' array without pinyin.
-            - Middle Lines (Dialogue): "r" MUST alternate between "美美" and "大卫". Strict HSK {level} Chinese only! Make it natural. {vocab_instruction}
+            - Middle Lines (Dialogue): "r" MUST alternate between "美美" and "大卫". Strict HSK {level} Chinese only! {vocab_instruction}
             - Last Line (Outro): "r" MUST be "主持人". The content MUST be entirely in {ui_lang} (e.g. "{outro_example}").
             {common_rules}
             Format Example: 
@@ -155,12 +151,18 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             ]
             """
         else: # dialogue
+            # 🚨 修复此处的致命遗漏！加上 Format Example
             prompt = f"""
             {topic_instruction} Level: {level}.
             Create a dense conversation between '美美' and '大卫'. Max {num_lines} lines.
             - "r" MUST alternate between "美美" and "大卫".
             {vocab_instruction}
             {common_rules}
+            Format Example: 
+            [
+                {{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["，", ""]], "tr_es": "...", "tr_en": "..."}},
+                {{"r": "大卫", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "...", "tr_en": "..."}}
+            ]
             """
 
         response = model.generate_content(prompt, safety_settings=safety, generation_config=gen_config)
@@ -172,7 +174,7 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         st.error(f"AI Generation Error: {str(e)}")
         return None
 
-# --- 4. 音频 (🌟 引入纯正英语/西班牙语 TTS 主持人) ---
+# --- 4. 音频 ---
 async def make_audio(data, filename, ui_lang):
     ts = []
     curr = 0.0
@@ -180,12 +182,10 @@ async def make_audio(data, filename, ui_lang):
         for i, line in enumerate(data):
             role = line.get("r", "美美") 
             
-            # 🌟 播客双语声线分配
             if role == "大卫": voice = "zh-CN-YunxiNeural"
             elif role == "美美": voice = "zh-CN-XiaoxiaoNeural"
             elif role == "旁白": voice = "zh-CN-XiaoyiNeural"
             elif role == "主持人":
-                # 使用最自然流畅的母语声线播报 Intro/Outro
                 voice = "es-ES-ElviraNeural" if ui_lang == "Español" else "en-US-AriaNeural"
             else: voice = "zh-CN-XiaoxiaoNeural"
 
@@ -193,7 +193,6 @@ async def make_audio(data, filename, ui_lang):
             if not raw: continue
             
             dur = len(raw) * 0.25 + 0.35 
-            # 如果是主持人说外语，语速计算稍微调整长一点
             if role == "主持人": dur = len(raw) * 0.08 + 1.0 
             
             ts.append({"start": curr, "end": curr + dur, "role": role})
@@ -268,7 +267,6 @@ def main():
         
         if st.button(ui["gen_btn"]):
             with st.spinner(ui["loading"]):
-                # 🌟 传入 ui_lang，让 AI 知道主持人该讲英语还是西班牙语
                 res = call_ai(topic, level, keys, num_lines, unit_limit, mode_type, ui_lang)
                 if res: st.session_state.current_data, st.session_state.audio_file, st.session_state.rendered_mode = res, "", mode_type; st.rerun()
         st.divider()
@@ -280,7 +278,6 @@ def main():
         curr_mode = st.session_state.get("rendered_mode", mode_type)
         if not st.session_state.audio_file:
             fname = f"audio_{int(time.time())}.mp3"
-            # 🌟 传入 ui_lang 给音频合成器，切换纯正外语发音
             st.session_state.ts = asyncio.run(make_audio(st.session_state.current_data, fname, ui_lang))
             st.session_state.audio_file = fname
             
@@ -302,7 +299,6 @@ def main():
         else:
             for idx, line in enumerate(st.session_state.current_data):
                 role = line.get("r", "美美")
-                # 🌟 渲染头像逻辑修复
                 if role == "大卫":
                     avatar = "avatar-dawei"
                     char = "大"
