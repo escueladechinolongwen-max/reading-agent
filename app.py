@@ -92,7 +92,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. AI 逻辑 ---
+# --- 3. AI 逻辑 (🌟 修复播客哑巴问题，强制标点回归) ---
 def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
     if not MY_API_KEY: return None
     try:
@@ -116,14 +116,15 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         else:
             topic_instruction = f"Topic: {topic}."
 
-        # 🌟 强制拒绝偷懒指令
+        # 🌟 核心修复：强制在 JSON 数组里保留标点符号！
         common_rules = f"""
         CRITICAL RULES (DO NOT IGNORE):
-        1. STRICT LENGTH: You MUST generate EXACTLY {num_lines} objects in your JSON array. NOT LESS. DO NOT stop early!
-        2. NO LAZY WRITING: You MUST progress the story to keep it interesting. Change the location, time, or conflict halfway through!
+        1. STRICT LENGTH: You MUST generate EXACTLY {num_lines} objects in your JSON array. NOT LESS.
+        2. NO LAZY WRITING: Progress the story to keep it interesting. Change the location, time, or conflict halfway through.
         3. QUANTITY: Use "两" (liǎng) for quantities (e.g., "两个"). NEVER say "两十", use "二十" (èr shí) for 20.
         4. EXACT ROLES: "r" MUST be exactly "美美", "大卫", "旁白", or "主持人".
-        5. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t" (list of EXACTLY 2-item lists: [["字", "pinyin"]]), "tr_es", "tr_en".
+        5. PUNCTUATION IS REQUIRED: You MUST include commas (，。？！) in the dialogue! Put the punctuation as the character and leave the pinyin empty. Example: [["好", "hǎo"], ["，", ""], ["再", "zài"], ["见", "jiàn"], ["！", ""]]
+        6. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t" (list of EXACTLY 2-item lists: [["字/标点", "pinyin"]]), "tr_es", "tr_en".
         """
 
         if mode_type == "story":
@@ -135,16 +136,16 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             {common_rules}
             """
         elif mode_type == "podcast":
-            # 🌟 赋予主持人强烈的活力与激情！
-            intro_example = "Hey guys! 🎉 Welcome back to our awesome Chinese learning podcast! Today we have a super fun topic..." if ui_lang == "English" else "¡Hola a todos! 🎉 ¡Bienvenidos de nuevo a nuestro increíble podcast de chino! Hoy tenemos una historia súper interesante..."
+            # 🌟 修复：用最直白的例子告诉 AI 主持人的格式，防止它写成空数组！
+            intro_example = "Welcome to our Chinese learning podcast! Today we have an interesting topic..." if ui_lang == "English" else "¡Hola a todos! Bienvenidos a nuestro podcast de chino. Hoy tenemos un tema súper interesante..."
             outro_example = "That's all for today! Thanks for hanging out with us, see you next time! Bye! 👋" if ui_lang == "English" else "¡Eso es todo por hoy chicos! ¡Gracias por escuchar, hasta la próxima! 👋"
             
             prompt = f"""
             {topic_instruction} Level: {level}.
             Create a professional bilingual PODCAST. You MUST generate EXACTLY {num_lines} lines total.
-            - Line 1 (Intro): "r" MUST be "主持人". The content MUST be entirely in {ui_lang} (e.g. "{intro_example}"). The Host MUST sound extremely energetic, friendly, and enthusiastic like a popular YouTuber! Use exclamation marks! NO PINYIN.
-            - Lines 2 to {num_lines - 1} (Dialogue): "r" MUST alternate between "美美" and "大卫". Strict HSK {level} Chinese only! {vocab_instruction}. Discuss the topic deeply.
-            - Line {num_lines} (Outro): "r" MUST be "主持人". The content MUST be entirely in {ui_lang} (e.g. "{outro_example}"). Keep it highly energetic! NO PINYIN.
+            - Line 1 (Intro): "r" MUST be "主持人". The text MUST be entirely in {ui_lang}. The Host MUST sound energetic! YOU MUST FORMAT THIS EXACTLY AS A 2-ITEM LIST WITH EMPTY PINYIN. Example: "t": [["{intro_example}", ""]]
+            - Lines 2 to {num_lines - 1} (Dialogue): "r" MUST alternate between "美美" and "大卫". Strict HSK {level} Chinese only! {vocab_instruction}.
+            - Line {num_lines} (Outro): "r" MUST be "主持人". The text MUST be entirely in {ui_lang}. FORMAT AS: "t": [["{outro_example}", ""]]
             {common_rules}
             """
         else: # dialogue
@@ -155,11 +156,6 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             - Introduce a small problem or change of plans to keep the {num_lines} lines engaging!
             {vocab_instruction}
             {common_rules}
-            Format Example: 
-            [
-                {{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["，", ""]], "tr_es": "...", "tr_en": "..."}},
-                {{"r": "大卫", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "...", "tr_en": "..."}}
-            ]
             """
 
         response = model.generate_content(prompt, safety_settings=safety, generation_config=gen_config)
@@ -179,27 +175,20 @@ async def make_audio(data, filename, ui_lang):
         for i, line in enumerate(data):
             role = line.get("r", "美美") 
             
-            # 🌟 最具活力的电台声线配置！
             if role == "大卫": voice = "zh-CN-YunxiNeural"
             elif role == "美美": voice = "zh-CN-XiaoxiaoNeural"
             elif role == "旁白": voice = "zh-CN-XiaoyiNeural"
-            elif role == "主持人": 
-                # Nancy 极具表现力，Dalia 是非常热情温暖的拉美西语
-                voice = "es-MX-DaliaNeural" if ui_lang == "Español" else "en-US-NancyNeural"
+            elif role == "主持人": voice = "es-MX-DaliaNeural" if ui_lang == "Español" else "en-US-NancyNeural"
             else: voice = "zh-CN-XiaoxiaoNeural"
 
             raw = "".join([str(item[0]) if isinstance(item, list) else str(item) for item in line.get("t", [])])
             if not raw: continue
             
             dur = len(raw) * 0.25 + 0.35 
-            
-            # 🌟 让主持人的语速变得更紧凑明快，充满能量
-            if role == "主持人": 
-                dur = len(raw) * 0.065 + 0.6 
+            if role == "主持人": dur = len(raw) * 0.065 + 0.6 
             
             ts.append({"start": curr, "end": curr + dur, "role": role})
             try:
-                # 可以通过 prosody 标签在未来进一步给声音打鸡血，目前原生高能声线已经很好了
                 comm = edge_tts.Communicate(raw, voice)
                 temp_f = f"tmp_{int(time.time())}_{i}.mp3"
                 await comm.save(temp_f)
