@@ -116,46 +116,48 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         else:
             topic_instruction = f"Topic: {topic}."
 
-        # 🌟 绝招：根据行数动态注入“剧本结构”！彻底打消偷懒念头
         structure_rule = ""
-        if num_lines >= 16:
+        if num_lines >= 16 and mode_type != "story":
             structure_rule = f"""
-            CRITICAL NARRATIVE ARC: Because you must generate a LONG text ({num_lines} lines), you CANNOT just talk about one single thing or use filler words. You MUST divide the story/dialogue into 3 acts to naturally reach the length:
-            - Act 1 (Beginning): Introduce the situation (e.g., talking about weather or making a plan).
-            - Act 2 (Plot Twist): Introduce a change, a problem, or a transition (e.g., it starts raining, things are too expensive, or moving to a taxi/restaurant).
-            - Act 3 (Ending): Resolve the situation.
+            CRITICAL NARRATIVE ARC: To naturally reach {num_lines} lines, you MUST divide the dialogue into 3 acts:
+            - Act 1: Introduce the situation.
+            - Act 2 (Plot Twist): Introduce a change (e.g., it starts raining, or moving to a taxi/restaurant).
+            - Act 3: Resolve the situation.
             """
 
         common_rules = f"""
         CRITICAL RULES (DO NOT IGNORE):
-        1. NO EARLY EXIT: You MUST generate EXACTLY {num_lines} objects in your JSON array. DO NOT end early! DO NOT stop before reaching {num_lines}.
+        1. EXACT LENGTH: You MUST generate EXACTLY {num_lines} objects in your JSON array. DO NOT end early!
         {structure_rule}
-        2. NO EMOJIS: Do NOT use any emojis (like 🎉, 👏, 👋) in the text! 
-        3. BILINGUAL TRANSLATION: "tr_en" MUST strictly be in English. "tr_es" MUST strictly be in Spanish. DO NOT mix them!
-        4. ANTI-PADDING (NO FILLER): NEVER use repetitive filler phrases just to reach the line count (e.g., A: "It's raining." B: "Yes, raining." A: "Big rain."). Every line must advance the plot.
-        5. QUANTITY: Use "两" (liǎng) for quantities. NEVER say "两十", use "二十" (èr shí) for 20.
-        6. PUNCTUATION: You MUST include commas and periods (，。？！) in the 't' array as characters with empty pinyin.
-        7. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t" (list of EXACTLY 2-item lists: [["字", "pinyin"]]), "tr_es", "tr_en".
+        2. NO EMOJIS: Do NOT use any emojis in the text.
+        3. STRICT BILINGUAL TRANSLATION: "tr_en" MUST strictly be English. "tr_es" MUST strictly be Spanish.
+        4. QUANTITY: Use "两" (liǎng) for quantities. NEVER say "两十", use "二十" (èr shí) for 20.
+        5. PUNCTUATION: You MUST include commas and periods (，。？！) in the 't' array as characters with empty pinyin.
+        6. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t" (list of EXACTLY 2-item lists: [["字", "pinyin"]]), "tr_es", "tr_en".
         """
 
         if mode_type == "story":
+            # 🌟 彻底隔离：严禁在故事模式中出现对话！
             prompt = f"""
             {topic_instruction} Level: {level}.
-            Create a descriptive Chinese story. EXACTLY {num_lines} sentences.
-            - "r" MUST always be "旁白".
+            Create a continuous narrative Chinese STORY. EXACTLY {num_lines} sentences.
+            - "r" MUST always be "旁白" (Narrator).
+            - ABSOLUTELY NO DIALOGUE! Do NOT use A/B format. Write a pure narrative descriptive paragraph broken into sentences.
+            - Progress the story naturally.
             {vocab_instruction}
             {common_rules}
             """
         elif mode_type == "podcast":
-            intro_example = "Welcome to our Chinese learning podcast! Today we have an interesting topic..." if ui_lang == "English" else "¡Hola a todos! Bienvenidos a nuestro podcast de chino. Hoy tenemos un tema súper interesante..."
-            outro_example = "That's all for today! Thanks for listening, see you next time!" if ui_lang == "English" else "¡Eso es todo por hoy chicos! ¡Gracias por escuchar, hasta la próxima!"
+            # 🌟 龙文专属品牌植入 (Long Wen Branding)
+            intro_example = "Welcome to the Long Wen Chinese School podcast! Today we have an interesting topic..." if ui_lang == "English" else "¡Hola a todos! Bienvenidos al podcast de la Escuela de chino Long Wen. Hoy tenemos un tema súper interesante..."
+            outro_example = "That's all for today! Thanks for listening to Long Wen Chinese School, see you next time!" if ui_lang == "English" else "¡Eso es todo por hoy! Gracias por escuchar la Escuela de chino Long Wen, ¡hasta la próxima!"
             
             prompt = f"""
             {topic_instruction} Level: {level}.
             Create a professional PODCAST. EXACTLY {num_lines} lines total.
-            - Line 1 (Intro): "r" MUST be "主持人". The text MUST be entirely in {ui_lang}. Set pinyin to empty string. NO EMOJIS! Example: [["{intro_example}", ""]]
-            - Middle Lines: "r" alternates between "美美" and "大卫". Strict HSK {level} Chinese only! {vocab_instruction}.
-            - Line {num_lines} (Outro): "r" MUST be "主持人". The text MUST be entirely in {ui_lang}. NO EMOJIS! Example: [["{outro_example}", ""]]
+            - Line 1 (Intro): "r" MUST be "主持人". Text MUST be entirely in {ui_lang}. Set pinyin to empty string. MUST include the school name! Example: [["{intro_example}", ""]]
+            - Middle Lines: "r" alternates between "美美" and "大卫". Strict HSK {level} Chinese only! {vocab_instruction}. NO filler/repetitive sentences.
+            - Line {num_lines} (Outro): "r" MUST be "主持人". Text MUST be entirely in {ui_lang}. Example: [["{outro_example}", ""]]
             {common_rules}
             """
         else: # dialogue
@@ -163,13 +165,9 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             {topic_instruction} Level: {level}.
             Create a rich, continuous conversation. EXACTLY {num_lines} lines.
             - "r" MUST alternate between "美美" and "大卫".
+            - Introduce a small problem or change of plans to keep it engaging. NO repetitive filler sentences.
             {vocab_instruction}
             {common_rules}
-            Format Example: 
-            [
-                {{"r": "美美", "t": [["你", "nǐ"], ["好", "hǎo"], ["，", ""]], "tr_es": "...", "tr_en": "..."}},
-                {{"r": "大卫", "t": [["你", "nǐ"], ["好", "hǎo"], ["！", ""]], "tr_es": "...", "tr_en": "..."}}
-            ]
             """
 
         response = model.generate_content(prompt, safety_settings=safety, generation_config=gen_config)
@@ -189,18 +187,23 @@ async def make_audio(data, filename, ui_lang):
         for i, line in enumerate(data):
             role = line.get("r", "美美") 
             
-            # 🌟 自然声线配置
-            if role == "大卫": voice = "zh-CN-YunyangNeural"  
-            elif role == "美美": voice = "zh-CN-XiaoxiaoNeural"
-            elif role == "旁白": voice = "zh-CN-XiaoyiNeural"
+            # 🌟 终极声线配置
+            if role == "大卫": 
+                voice = "zh-CN-YunjianNeural"  # 换成了极具口语感、阳光活泼的 Yunjian (云健)！
+            elif role == "美美": 
+                voice = "zh-CN-XiaoxiaoNeural"
+            elif role == "旁白": 
+                voice = "zh-CN-XiaoyiNeural"
             elif role == "主持人": 
-                voice = "es-MX-DaliaNeural" if ui_lang == "Español" else "en-US-AvaNeural"
-            else: voice = "zh-CN-XiaoxiaoNeural"
+                # 换成了非常有活力的现代播客声线 (Abril 和 Jane)
+                voice = "es-ES-AbrilNeural" if ui_lang == "Español" else "en-US-JaneNeural"
+            else: 
+                voice = "zh-CN-XiaoxiaoNeural"
 
             raw = "".join([str(item[0]) if isinstance(item, list) else str(item) for item in line.get("t", [])])
             if not raw: continue
             
-            # 🌟 终极护盾：过滤掉表情包，防止 TTS 乱念
+            # 过滤表情符号
             raw_tts = re.sub(r'[^\w\s\u4e00-\u9fa5，。？！.,!?¡¿\']', '', raw)
             if not raw_tts.strip(): continue 
             
@@ -313,7 +316,6 @@ def main():
         else:
             for idx, line in enumerate(st.session_state.current_data):
                 role = line.get("r", "美美")
-                # 🌟 UI 翻译防串台
                 trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
                 
                 if role == "大卫":
