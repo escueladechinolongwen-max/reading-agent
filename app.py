@@ -12,8 +12,10 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold, Generati
 
 # --- 1. 核心配置 ---
 st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="wide", initial_sidebar_state="expanded")
-MY_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else os.environ.get("GOOGLE_API_KEY")
-TARGET_MODEL = 'models/gemini-2.0-flash' # 使用Flash引擎，但通过深度推理生成Prompt
+
+# 🚀 物理修复红屏错误：换回最稳定的环境变量读取方式
+MY_API_KEY = os.environ.get("GOOGLE_API_KEY") 
+TARGET_MODEL = 'models/gemini-2.0-flash' 
 
 HSK1_VOCAB = {
     1: ["我", "你", "他", "她", "您", "们", "好", "再见"],
@@ -37,7 +39,7 @@ UI_TEXT = {
     "Español": { 
         "instr": "✍️ Escribe aquí para practicar...", "gen_btn": "Generar Lección ✨", 
         "topic": "Tema", "level": "Nivel", "keywords": "Palabras", "lines": "Líneas (Exactas)",
-        "unit": "Límite de Unidad (HSK 1)", "loading": "✨ Pensando lógicamente...",
+        "unit": "Límite de Unidad (HSK 1)", "loading": "✨ Creando magia...",
         "show_py": "Mostrar Pinyin", "show_tr": "Mostrar Traducción", "refresh": "Regenerar Audio",
         "mode": "Modo", "dialogue": "Diálogo 🗣️", "story": "Historia 📖", "podcast": "Podcast 🎧",
         "dl_btn": "📥 Descargar Podcast (MP3)"
@@ -45,7 +47,7 @@ UI_TEXT = {
     "English": { 
         "instr": "✍️ Type here to practice...", "gen_btn": "Generate Lesson ✨", 
         "topic": "Topic", "level": "Level", "keywords": "Keywords", "lines": "Lines (Exact)",
-        "unit": "Unit Limit (HSK 1)", "loading": "✨ Thinking logically...",
+        "unit": "Unit Limit (HSK 1)", "loading": "✨ Creating magic...",
         "show_py": "Show Pinyin", "show_tr": "Show Translation", "refresh": "Regenerate Audio",
         "mode": "Mode", "dialogue": "Dialogue 🗣️", "story": "Story 📖", "podcast": "Podcast 🎧",
         "dl_btn": "📥 Download Podcast (MP3)"
@@ -90,14 +92,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. AI 逻辑 (🌟 深度推理重构版) ---
+# --- 3. AI 逻辑 ---
 def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
     if not MY_API_KEY: return None
     try:
         genai.configure(api_key=MY_API_KEY)
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
-        gen_config = GenerationConfig(temperature=0.8)
+        gen_config = GenerationConfig(temperature=0.85)
 
         allowed_vocab = []
         if level == "HSK 1":
@@ -106,40 +108,47 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         vocab_instruction = f"STRICT VOCABULARY LIMIT: You MUST ONLY use Chinese words from this list: [{', '.join(allowed_vocab)}]. DO NOT use any other words." if allowed_vocab else ""
             
         if not topic:
-            topics_pool = ["去饭店吃饭但没带钱", "坐出租车去医院看医生", "大学里的同学想买漂亮衣服", "下雨天在家喝茶看电影", "打电话问明天天气"]
+            if mode_type == "story":
+                topics_pool = ["美美喜欢她的学校", "大卫的家和他的猫", "在商店买漂亮的杯子", "北京的天气和中国菜"]
+            else:
+                topics_pool = ["计划去饭店吃饭", "坐出租车去买东西", "周末上午喝茶看书", "打电话讨论明天去哪儿"]
             topic_instruction = f"Topic: '{random.choice(topics_pool)}'."
         else:
             topic_instruction = f"Topic: {topic}."
 
         common_rules = f"""
-        CRITICAL LOGIC & QUALITY RULES:
-        1. EXACT LENGTH: You MUST generate EXACTLY {num_lines} objects.
-        2. ANTI-REPETITION (NO LOOPS): NEVER use parallel syntactic structures to repeat different actions (e.g., Do NOT repeat "Shall we drink tea? Yes." followed by "Shall we read books? Yes."). Every act must be unique!
-        3. REAL CONFLICT: For long dialogues ({num_lines} lines), introduce a real problem (e.g., "I have a book but no tea", "I want to go but it's too cold").
-        4. ROBOTIC PADDING BAN: People omit words! If A says "We go by taxi?", B says "Great!", NOT "Great, we go by taxi."
-        5. PUNCTUATION: Include commas/periods (，。？！) in 't' array with empty pinyin.
+        CRITICAL RULES:
+        1. EXACT LENGTH: Generate EXACTLY {num_lines} objects.
+        2. NATURAL FLOW (NO ROBOTIC REPETITION): NEVER use the same sentence structure repeatedly to pad length (WRONG: "We go by taxi. We go by taxi now."). Use varied sentence structures. Omit verbs/nouns already mentioned in the conversation (e.g. if A asks "Shall we go by taxi?", B says "Great!", NOT "Great, we go by taxi.").
+        3. LOGICAL TIMELINES: Pay attention to today/tomorrow/now logic.
+        4. PUNCTUATION: Include commas and periods (，。？！) in 't' with empty pinyin.
+        5. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t", "tr_es", "tr_en".
         6. ROLE NAMES: Use ONLY "美美", "大卫", "主持人" or "旁白".
-        7. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t" (list of 2-item lists: [["Char", "pinyin"]]), "tr_es", "tr_en".
         """
 
         if mode_type == "story":
-            prompt = f"{topic_instruction} Level: {level}. Create a Chinese STORY (Narrative paragraph, NO dialogue). EXACTLY {num_lines} sentences. 'r' is always '旁白'. {vocab_instruction} {common_rules}"
+            prompt = f"""
+            {topic_instruction} Level: {level}. 
+            Create a descriptive Chinese STORY. EXACTLY {num_lines} sentences.
+            - "r" is always "旁白".
+            - PURE NARRATIVE: ABSOLUTELY NO DIALOGUE.
+            - NO REPETITIVE STRUCTURES: Do not start every sentence with the same subject (e.g. "She is... She likes... She goes..."). Combine ideas naturally.
+            {vocab_instruction} {common_rules}
+            """
         elif mode_type == "podcast":
-            school_es = "Escuela de chino Long Wen"
-            school_en = "Long Wen Chinese School"
-            intro_text = f"Welcome to the {school_en} podcast! Let's dive in!" if ui_lang == "English" else f"¡Hola! Bienvenidos al podcast de la {school_es}. ¡Empecemos!"
-            outro_text = f"Thanks for listening to {school_en}, see you next time!" if ui_lang == "English" else f"¡Gracias por escuchar {school_es}, hasta la próxima!"
+            school_es, school_en = "Escuela de chino Long Wen", "Long Wen Chinese School"
+            intro_text = f"Hello everyone! Welcome to the {school_en} podcast. Let's start!" if ui_lang == "English" else f"¡Hola a todos! Bienvenidos al podcast de la {school_es}. ¡Empecemos!"
+            outro_text = f"That's all for today! Thanks for listening to {school_en}!" if ui_lang == "English" else f"¡Eso es todo por hoy! ¡Gracias por escuchar a {school_es}!"
             
             prompt = f"""
-            {topic_instruction} Level: {level}.
-            Create a professional PODCAST. EXACTLY {num_lines} lines.
-            - Line 1 (Intro): "r" MUST be "主持人". Text MUST be entirely in {ui_lang}. YOU MUST FILL THE 't' KEY. Example: "t": [["{intro_text}", ""]]
-            - Middle Lines: Dynamic dialogue between "美美" and "大卫". Strict HSK {level} Chinese only! {vocab_instruction}.
-            - Line {num_lines} (Outro): "r" MUST be "主持人". Text MUST be in {ui_lang}. MUST mention "{school_en if ui_lang=='English' else school_es}".
-            {common_rules}
+            {topic_instruction} Level: {level}. Professional PODCAST. EXACTLY {num_lines} lines.
+            - Line 1 (Intro): "r" is "主持人". Text in {ui_lang}. MUST include "{school_en if ui_lang=='English' else school_es}".
+            - Middle Lines: Dialogue between "美美" and "大卫". USE NATURAL OMISSIONS.
+            - Line {num_lines} (Outro): "r" is "主持人". Text in {ui_lang}.
+            {vocab_instruction} {common_rules}
             """
         else: # dialogue
-            prompt = f"{topic_instruction} Level: {level}. Create a conversation between '美美' and '大卫'. EXACTLY {num_lines} lines. {vocab_instruction} {common_rules}"
+            prompt = f"{topic_instruction} Level: {level}. Conversation between '美美' and '大卫'. EXACTLY {num_lines} lines. NO REPETITION of full sentences. {vocab_instruction} {common_rules}"
 
         response = model.generate_content(prompt, safety_settings=safety, generation_config=gen_config)
         raw_text = response.text.strip().replace("```json", "").replace("```", "")
@@ -150,7 +159,7 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         st.error(f"AI Generation Error: {str(e)}")
         return None
 
-# --- 4. 音频 (🌟 增强型物理锁定匹配) ---
+# --- 4. 音频 ---
 async def make_audio(data, filename, ui_lang):
     ts = []
     curr = 0.0
@@ -158,25 +167,17 @@ async def make_audio(data, filename, ui_lang):
         for i, line in enumerate(data):
             role_raw = str(line.get("r", "美美"))
             role = re.sub(r'[^\w]', '', role_raw)
-            
-            # 使用 Yunxi (云希) 作为大卫，因为他比云健大爷活泼多了！
             if "大卫" in role: voice = "zh-CN-YunxiNeural"
             elif "主持人" in role: voice = ("es-ES-AbrilNeural" if ui_lang == "Español" else "en-US-JaneNeural")
             elif "旁白" in role: voice = "zh-CN-XiaoyiNeural"
             else: voice = "zh-CN-XiaoxiaoNeural" 
 
             raw = "".join([str(item[0]) if isinstance(item, list) else str(item) for item in line.get("t", [])])
-            
-            # 主持人内容兜底
-            if not raw.strip() and "主持人" in role:
-                raw = "¡Hola! Bienvenidos a Long Wen." if ui_lang == "Español" else "Welcome to Long Wen podcast!"
-            
+            if not raw.strip() and "主持人" in role: raw = "¡Bienvenidos!" if ui_lang == "Español" else "Welcome!"
             if not raw: continue
             
-            # 清理文本防止读出 Emoji
             raw_tts = re.sub(r'[^\w\s\u4e00-\u9fa5，。？！.,!?¡¿\']', '', raw)
             dur = len(raw) * (0.07 if "主持人" in role else 0.25) + 0.5 
-            
             ts.append({"start": curr, "end": curr + dur, "role": role})
             try:
                 comm = edge_tts.Communicate(raw_tts, voice)
@@ -272,7 +273,7 @@ def main():
                 hanzi = "".join([f'<ruby>{str(it[0]) if isinstance(it,list) else str(it)}<rt>{it[1] if isinstance(it,list) and len(it)>1 else ""}</rt></ruby>' for it in line.get("t", [])])
                 html_str += f'<div class="cute-row" id="row-{idx}"><div class="cute-avatar {avatar}">{char}</div><div class="cute-chinese">{hanzi}</div><div class="cute-trans">{trans}</div></div>'
         st.markdown(html_str + '</div>', unsafe_allow_html=True)
-        st.text_input("practice", label_visibility="collapsed", placeholder=ui["instr"])
+        st.text_input("practice", key="practice_input", label_visibility="collapsed", placeholder=ui["instr"])
     else: st.info("👈 Please enter settings and click Generate")
 
 if __name__ == "__main__": main()
