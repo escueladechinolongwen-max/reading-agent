@@ -119,36 +119,34 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         structure_rule = ""
         if num_lines >= 16 and mode_type != "story":
             structure_rule = f"""
-            CRITICAL NARRATIVE ARC: To naturally reach {num_lines} lines, you MUST divide the dialogue into 3 acts:
-            - Act 1: Introduce the situation.
-            - Act 2 (Plot Twist): Introduce a change (e.g., it starts raining, or moving to a taxi/restaurant).
-            - Act 3: Resolve the situation.
+            CRITICAL NARRATIVE ARC: To naturally reach {num_lines} lines, you MUST divide the dialogue into acts:
+            - Act 1: Introduce the plan.
+            - Act 2 (Plot Twist): A problem occurs (e.g., rain, or too expensive).
+            - Act 3: Resolve it.
             """
 
+        # 🌟 增加“像人类一样省略”的防复读机规则
         common_rules = f"""
         CRITICAL RULES (DO NOT IGNORE):
         1. EXACT LENGTH: You MUST generate EXACTLY {num_lines} objects in your JSON array. DO NOT end early!
         {structure_rule}
-        2. NO EMOJIS: Do NOT use any emojis in the text.
-        3. STRICT BILINGUAL TRANSLATION: "tr_en" MUST strictly be English. "tr_es" MUST strictly be Spanish.
-        4. QUANTITY: Use "两" (liǎng) for quantities. NEVER say "两十", use "二十" (èr shí) for 20.
+        2. NATURAL CONVERSATION (OMISSIONS): People do NOT repeat full sentences mechanically! If Person A asks "我们坐出租车去好吗？" (Shall we take a taxi?), Person B MUST reply naturally with just "好啊！" or "行！", NEVER reply "好的，我们坐出租车去". Omit the verbs and nouns that were just said!
+        3. NO EMOJIS: Do NOT use any emojis in the text.
+        4. STRICT BILINGUAL TRANSLATION: "tr_en" MUST strictly be English. "tr_es" MUST strictly be Spanish.
         5. PUNCTUATION: You MUST include commas and periods (，。？！) in the 't' array as characters with empty pinyin.
         6. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t" (list of EXACTLY 2-item lists: [["字", "pinyin"]]), "tr_es", "tr_en".
         """
 
         if mode_type == "story":
-            # 🌟 彻底隔离：严禁在故事模式中出现对话！
             prompt = f"""
             {topic_instruction} Level: {level}.
             Create a continuous narrative Chinese STORY. EXACTLY {num_lines} sentences.
             - "r" MUST always be "旁白" (Narrator).
             - ABSOLUTELY NO DIALOGUE! Do NOT use A/B format. Write a pure narrative descriptive paragraph broken into sentences.
-            - Progress the story naturally.
             {vocab_instruction}
             {common_rules}
             """
         elif mode_type == "podcast":
-            # 🌟 龙文专属品牌植入 (Long Wen Branding)
             intro_example = "Welcome to the Long Wen Chinese School podcast! Today we have an interesting topic..." if ui_lang == "English" else "¡Hola a todos! Bienvenidos al podcast de la Escuela de chino Long Wen. Hoy tenemos un tema súper interesante..."
             outro_example = "That's all for today! Thanks for listening to Long Wen Chinese School, see you next time!" if ui_lang == "English" else "¡Eso es todo por hoy! Gracias por escuchar la Escuela de chino Long Wen, ¡hasta la próxima!"
             
@@ -156,7 +154,7 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             {topic_instruction} Level: {level}.
             Create a professional PODCAST. EXACTLY {num_lines} lines total.
             - Line 1 (Intro): "r" MUST be "主持人". Text MUST be entirely in {ui_lang}. Set pinyin to empty string. MUST include the school name! Example: [["{intro_example}", ""]]
-            - Middle Lines: "r" alternates between "美美" and "大卫". Strict HSK {level} Chinese only! {vocab_instruction}. NO filler/repetitive sentences.
+            - Middle Lines: "r" alternates between "美美" and "大卫". Strict HSK {level} Chinese only! {vocab_instruction}. 
             - Line {num_lines} (Outro): "r" MUST be "主持人". Text MUST be entirely in {ui_lang}. Example: [["{outro_example}", ""]]
             {common_rules}
             """
@@ -165,7 +163,6 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             {topic_instruction} Level: {level}.
             Create a rich, continuous conversation. EXACTLY {num_lines} lines.
             - "r" MUST alternate between "美美" and "大卫".
-            - Introduce a small problem or change of plans to keep it engaging. NO repetitive filler sentences.
             {vocab_instruction}
             {common_rules}
             """
@@ -187,15 +184,15 @@ async def make_audio(data, filename, ui_lang):
         for i, line in enumerate(data):
             role = line.get("r", "美美") 
             
-            # 🌟 终极声线配置
+            # 🌟 换回最纯正阳光的青年男声：Yunxi (云希)
+            # 如果您想试试稍微成熟一点但也很热情的，可以把这里换成 "zh-CN-YunfengNeural"
             if role == "大卫": 
-                voice = "zh-CN-YunjianNeural"  # 换成了极具口语感、阳光活泼的 Yunjian (云健)！
+                voice = "zh-CN-YunxiNeural"  
             elif role == "美美": 
                 voice = "zh-CN-XiaoxiaoNeural"
             elif role == "旁白": 
                 voice = "zh-CN-XiaoyiNeural"
             elif role == "主持人": 
-                # 换成了非常有活力的现代播客声线 (Abril 和 Jane)
                 voice = "es-ES-AbrilNeural" if ui_lang == "Español" else "en-US-JaneNeural"
             else: 
                 voice = "zh-CN-XiaoxiaoNeural"
@@ -203,7 +200,6 @@ async def make_audio(data, filename, ui_lang):
             raw = "".join([str(item[0]) if isinstance(item, list) else str(item) for item in line.get("t", [])])
             if not raw: continue
             
-            # 过滤表情符号
             raw_tts = re.sub(r'[^\w\s\u4e00-\u9fa5，。？！.,!?¡¿\']', '', raw)
             if not raw_tts.strip(): continue 
             
