@@ -12,8 +12,6 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold, Generati
 
 # --- 1. 核心配置 ---
 st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="wide", initial_sidebar_state="expanded")
-
-# 🚀 物理修复红屏错误：换回最稳定的环境变量读取方式
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY") 
 TARGET_MODEL = 'models/gemini-2.0-flash' 
 
@@ -39,7 +37,7 @@ UI_TEXT = {
     "Español": { 
         "instr": "✍️ Escribe aquí para practicar...", "gen_btn": "Generar Lección ✨", 
         "topic": "Tema", "level": "Nivel", "keywords": "Palabras", "lines": "Líneas (Exactas)",
-        "unit": "Límite de Unidad (HSK 1)", "loading": "✨ Creando magia...",
+        "unit": "Límite de Unidad (HSK 1)", "loading": "✨ Procesando lógica de la historia...",
         "show_py": "Mostrar Pinyin", "show_tr": "Mostrar Traducción", "refresh": "Regenerar Audio",
         "mode": "Modo", "dialogue": "Diálogo 🗣️", "story": "Historia 📖", "podcast": "Podcast 🎧",
         "dl_btn": "📥 Descargar Podcast (MP3)"
@@ -47,7 +45,7 @@ UI_TEXT = {
     "English": { 
         "instr": "✍️ Type here to practice...", "gen_btn": "Generate Lesson ✨", 
         "topic": "Topic", "level": "Level", "keywords": "Keywords", "lines": "Lines (Exact)",
-        "unit": "Unit Limit (HSK 1)", "loading": "✨ Creating magic...",
+        "unit": "Unit Limit (HSK 1)", "loading": "✨ Processing story logic...",
         "show_py": "Show Pinyin", "show_tr": "Show Translation", "refresh": "Regenerate Audio",
         "mode": "Mode", "dialogue": "Dialogue 🗣️", "story": "Story 📖", "podcast": "Podcast 🎧",
         "dl_btn": "📥 Download Podcast (MP3)"
@@ -75,8 +73,14 @@ st.markdown("""
     .story-trans { margin-top: 40px; padding-top: 25px; border-top: 2px dashed #FFF0D4; color: #94A3B8; font-size: 1rem; line-height: 1.8; text-align: justify; }
     .story-trans-sentence { transition: color 0.3s ease, background-color 0.3s ease; border-radius: 6px; padding: 2px 4px; margin-right: 5px; }
     .podcast-card { background: linear-gradient(135deg, #FF9F1C 0%, #FFD166 100%); border-radius: 20px; padding: 20px; text-align: center; color: white; box-shadow: 0 10px 20px rgba(255, 159, 28, 0.3); margin-bottom: 20px; }
+    
     ruby { font-size: 24px; font-weight: 700; color: #4A4A4A; ruby-position: under; line-height: 2.0; margin-right: 2px;}
     rt { font-size: 12px; color: #FF8BA7; font-weight: 600; font-family: sans-serif; }
+    
+    /* 超纲词专属高亮样式 */
+    .oov-word { color: #D35400 !important; border-bottom: 2px dotted #D35400; cursor: help; position: relative;}
+    .oov-star { color: #E74C3C; font-size: 14px; position: relative; top: -10px; margin-left: 2px;}
+    
     .cute-trans { width: 35%; padding-left: 20px; color: #AAB7B8; font-size: 0.9rem; font-style: italic; border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4; }
     audio::-webkit-media-controls-enclosure { border-radius: 20px; }
     audio::-internal-media-controls-overflow-button { display: none !important; }
@@ -99,40 +103,41 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         genai.configure(api_key=MY_API_KEY)
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
-        gen_config = GenerationConfig(temperature=0.85)
+        gen_config = GenerationConfig(temperature=0.8)
 
         allowed_vocab = []
         if level == "HSK 1":
             for i in range(1, unit_limit + 1): allowed_vocab.extend(HSK1_VOCAB.get(i, []))
         
-        vocab_instruction = f"STRICT VOCABULARY LIMIT: You MUST ONLY use Chinese words from this list: [{', '.join(allowed_vocab)}]. DO NOT use any other words." if allowed_vocab else ""
+        # 🌟 超纲词 (OOV) 规则加入
+        vocab_instruction = f"""
+        VOCABULARY RULE: Primarily use Chinese words from this list: [{', '.join(allowed_vocab)}]. 
+        NATURALNESS EXCEPTION (OOV): To make the dialogue flow naturally, you are allowed to use a MAXIMUM of 3 Out-Of-Vocabulary (OOV) words (e.g., 绿茶, 红茶, 手机).
+        """ if allowed_vocab else ""
             
         if not topic:
-            if mode_type == "story":
-                topics_pool = ["美美喜欢她的学校", "大卫的家和他的猫", "在商店买漂亮的杯子", "北京的天气和中国菜"]
-            else:
-                topics_pool = ["计划去饭店吃饭", "坐出租车去买东西", "周末上午喝茶看书", "打电话讨论明天去哪儿"]
+            topics_pool = ["去饭店吃饭点菜", "打车去医院看朋友", "下雨天在家喝茶看电影", "计划明天去买漂亮衣服"]
             topic_instruction = f"Topic: '{random.choice(topics_pool)}'."
         else:
             topic_instruction = f"Topic: {topic}."
 
+        # 🌟 修复拼音丢失：强锁格式
         common_rules = f"""
-        CRITICAL RULES:
-        1. EXACT LENGTH: Generate EXACTLY {num_lines} objects.
-        2. NATURAL FLOW (NO ROBOTIC REPETITION): NEVER use the same sentence structure repeatedly to pad length (WRONG: "We go by taxi. We go by taxi now."). Use varied sentence structures. Omit verbs/nouns already mentioned in the conversation (e.g. if A asks "Shall we go by taxi?", B says "Great!", NOT "Great, we go by taxi.").
-        3. LOGICAL TIMELINES: Pay attention to today/tomorrow/now logic.
-        4. PUNCTUATION: Include commas and periods (，。？！) in 't' with empty pinyin.
-        5. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t", "tr_es", "tr_en".
-        6. ROLE NAMES: Use ONLY "美美", "大卫", "主持人" or "旁白".
+        CRITICAL FORMAT & QUALITY RULES:
+        1. ARRAY FORMAT LOCK: The 't' array MUST contain nested lists. DO NOT output flat strings.
+           - Standard word: ["word", "pinyin"] -> e.g., ["好", "hǎo"]
+           - Punctuation: ["punc", ""] -> e.g., ["，", ""]
+           - IF YOU USE AN OOV WORD (Out-of-vocabulary), you MUST format it as a 3-item list: ["word", "pinyin", "Translation in {ui_lang}"] -> e.g., ["绿茶", "lǜchá", "green tea"].
+        2. EXACT LENGTH: Generate EXACTLY {num_lines} objects.
+        3. NO ROBOTIC REPETITION: Do NOT repeat the same sentence patterns. Omit verbs/nouns that were just said.
+        4. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t", "tr_es", "tr_en".
         """
 
         if mode_type == "story":
             prompt = f"""
             {topic_instruction} Level: {level}. 
             Create a descriptive Chinese STORY. EXACTLY {num_lines} sentences.
-            - "r" is always "旁白".
-            - PURE NARRATIVE: ABSOLUTELY NO DIALOGUE.
-            - NO REPETITIVE STRUCTURES: Do not start every sentence with the same subject (e.g. "She is... She likes... She goes..."). Combine ideas naturally.
+            - "r" MUST always be "旁白". ABSOLUTELY NO DIALOGUE! Write pure narrative prose.
             {vocab_instruction} {common_rules}
             """
         elif mode_type == "podcast":
@@ -142,9 +147,9 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             
             prompt = f"""
             {topic_instruction} Level: {level}. Professional PODCAST. EXACTLY {num_lines} lines.
-            - Line 1 (Intro): "r" is "主持人". Text in {ui_lang}. MUST include "{school_en if ui_lang=='English' else school_es}".
+            - Line 1: "r" is "主持人". Text in {ui_lang}. Example: "t": [["{intro_text}", ""]]
             - Middle Lines: Dialogue between "美美" and "大卫". USE NATURAL OMISSIONS.
-            - Line {num_lines} (Outro): "r" is "主持人". Text in {ui_lang}.
+            - Line {num_lines}: "r" is "主持人". Text in {ui_lang}. Example: "t": [["{outro_text}", ""]]
             {vocab_instruction} {common_rules}
             """
         else: # dialogue
@@ -167,17 +172,21 @@ async def make_audio(data, filename, ui_lang):
         for i, line in enumerate(data):
             role_raw = str(line.get("r", "美美"))
             role = re.sub(r'[^\w]', '', role_raw)
+            
             if "大卫" in role: voice = "zh-CN-YunxiNeural"
-            elif "主持人" in role: voice = ("es-ES-AbrilNeural" if ui_lang == "Español" else "en-US-JaneNeural")
+            elif "主持人" in role: voice = ("es-ES-AbrilNeural" if ui_lang == "Español" else "en-US-AvaNeural")
             elif "旁白" in role: voice = "zh-CN-XiaoyiNeural"
             else: voice = "zh-CN-XiaoxiaoNeural" 
 
             raw = "".join([str(item[0]) if isinstance(item, list) else str(item) for item in line.get("t", [])])
-            if not raw.strip() and "主持人" in role: raw = "¡Bienvenidos!" if ui_lang == "Español" else "Welcome!"
+            
+            if not raw.strip() and "主持人" in role:
+                raw = "¡Bienvenidos!" if ui_lang == "Español" else "Welcome!"
             if not raw: continue
             
             raw_tts = re.sub(r'[^\w\s\u4e00-\u9fa5，。？！.,!?¡¿\']', '', raw)
             dur = len(raw) * (0.07 if "主持人" in role else 0.25) + 0.5 
+            
             ts.append({"start": curr, "end": curr + dur, "role": role})
             try:
                 comm = edge_tts.Communicate(raw_tts, voice)
@@ -261,7 +270,20 @@ def main():
             ch_h, tr_h = '<div class="story-chinese">', '<div class="story-trans">'
             for idx, line in enumerate(st.session_state.current_data):
                 trans = (line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", ""))
-                hanzi = "".join([f'<ruby>{str(it[0]) if isinstance(it,list) else str(it)}<rt>{it[1] if isinstance(it,list) and len(it)>1 else ""}</rt></ruby>' for it in line.get("t", [])])
+                hanzi = ""
+                for it in line.get("t", []):
+                    if isinstance(it, list):
+                        c = str(it[0]) if len(it) > 0 else ""
+                        p = str(it[1]) if len(it) > 1 else ""
+                        # 🌟 判断是否是带有翻译的超纲词
+                        if len(it) > 2 and it[2]:
+                            oov_trans = str(it[2])
+                            hanzi += f'<ruby class="oov-word" title="超纲: {oov_trans}">{c}<span class="oov-star">*</span><rt>{p}</rt></ruby>'
+                        else:
+                            hanzi += f'<ruby>{c}<rt>{p}</rt></ruby>'
+                    else:
+                        hanzi += f'<ruby>{it}<rt></rt></ruby>'
+                
                 ch_h += f'<span class="story-sentence" id="row-{idx}">{hanzi}</span> '
                 tr_h += f'<span class="story-trans-sentence" id="trans-{idx}">{idx+1}. {trans} </span>'
             html_str += f"{ch_h}</div>{tr_h}</div></div>"
@@ -270,7 +292,21 @@ def main():
                 role, trans = str(line.get("r", "美美")), (line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", ""))
                 avatar = "avatar-dawei" if "大卫" in role else ("avatar-host" if "主持人" in role else ("avatar-narrator" if "旁白" in role else ""))
                 char = "🎧" if "主持人" in role else (role[0] if len(role)>0 else "美")
-                hanzi = "".join([f'<ruby>{str(it[0]) if isinstance(it,list) else str(it)}<rt>{it[1] if isinstance(it,list) and len(it)>1 else ""}</rt></ruby>' for it in line.get("t", [])])
+                
+                hanzi = ""
+                for it in line.get("t", []):
+                    if isinstance(it, list):
+                        c = str(it[0]) if len(it) > 0 else ""
+                        p = str(it[1]) if len(it) > 1 else ""
+                        # 🌟 判断是否是带有翻译的超纲词
+                        if len(it) > 2 and it[2]:
+                            oov_trans = str(it[2])
+                            hanzi += f'<ruby class="oov-word" title="超纲 (OOV): {oov_trans}">{c}<span class="oov-star">*</span><rt>{p}</rt></ruby>'
+                        else:
+                            hanzi += f'<ruby>{c}<rt>{p}</rt></ruby>'
+                    else:
+                        hanzi += f'<ruby>{it}<rt></rt></ruby>'
+                
                 html_str += f'<div class="cute-row" id="row-{idx}"><div class="cute-avatar {avatar}">{char}</div><div class="cute-chinese">{hanzi}</div><div class="cute-trans">{trans}</div></div>'
         st.markdown(html_str + '</div>', unsafe_allow_html=True)
         st.text_input("practice", key="practice_input", label_visibility="collapsed", placeholder=ui["instr"])
