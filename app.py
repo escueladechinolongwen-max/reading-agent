@@ -37,7 +37,7 @@ UI_TEXT = {
     "Español": { 
         "instr": "✍️ Escribe aquí para practicar...", "gen_btn": "Generar Lección ✨", 
         "topic": "Tema", "level": "Nivel", "keywords": "Palabras", "lines": "Líneas (Exactas)",
-        "unit": "Límite de Unidad (HSK 1)", "loading": "✨ Creando magia... (Puede tardar)",
+        "unit": "Límite de Unidad (HSK 1)", "loading": "✨ Creando magia...",
         "show_py": "Mostrar Pinyin", "show_tr": "Mostrar Traducción", "refresh": "Regenerar Audio",
         "mode": "Modo", "dialogue": "Diálogo 🗣️", "story": "Historia 📖", "podcast": "Podcast 🎧",
         "dl_btn": "📥 Descargar Podcast (MP3)"
@@ -45,7 +45,7 @@ UI_TEXT = {
     "English": { 
         "instr": "✍️ Type here to practice...", "gen_btn": "Generate Lesson ✨", 
         "topic": "Topic", "level": "Level", "keywords": "Keywords", "lines": "Lines (Exact)",
-        "unit": "Unit Limit (HSK 1)", "loading": "✨ Creating magic... (Takes longer)",
+        "unit": "Unit Limit (HSK 1)", "loading": "✨ Creating magic...",
         "show_py": "Show Pinyin", "show_tr": "Show Translation", "refresh": "Regenerate Audio",
         "mode": "Mode", "dialogue": "Dialogue 🗣️", "story": "Story 📖", "podcast": "Podcast 🎧",
         "dl_btn": "📥 Download Podcast (MP3)"
@@ -111,61 +111,47 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             if mode_type == "story":
                 topics_pool = ["大卫的一天", "美美去医院看医生", "昨天晚上的电影和晚饭", "下雨天不想去学校"]
             else:
-                topics_pool = ["计划去饭店吃饭", "坐出租车去买东西", "周末上午喝茶看书", "打电话讨论明天去哪儿"]
+                topics_pool = ["计划去饭店吃饭", "坐出租车去买东西", "周末上午喝茶看书", "打电话讨论去哪儿"]
             topic_instruction = f"Topic: '{random.choice(topics_pool)}'."
         else:
             topic_instruction = f"Topic: {topic}."
 
         structure_rule = ""
         if num_lines >= 16 and mode_type != "story":
-            structure_rule = f"""
-            CRITICAL NARRATIVE ARC: To naturally reach {num_lines} lines, you MUST divide the dialogue into acts:
-            - Act 1: Introduce the plan.
-            - Act 2 (Plot Twist): A problem occurs (e.g., rain, or too expensive).
-            - Act 3: Resolve it.
-            """
+            structure_rule = f"CRITICAL NARRATIVE ARC: To naturally reach {num_lines} lines, divide the dialogue into 3 acts (Plan -> Problem -> Solution)."
 
-        # 🌟 增加“像人类一样省略”的防复读机规则
         common_rules = f"""
-        CRITICAL RULES (DO NOT IGNORE):
-        1. EXACT LENGTH: You MUST generate EXACTLY {num_lines} objects in your JSON array. DO NOT end early!
-        {structure_rule}
-        2. NATURAL CONVERSATION (OMISSIONS): People do NOT repeat full sentences mechanically! If Person A asks "我们坐出租车去好吗？" (Shall we take a taxi?), Person B MUST reply naturally with just "好啊！" or "行！", NEVER reply "好的，我们坐出租车去". Omit the verbs and nouns that were just said!
-        3. NO EMOJIS: Do NOT use any emojis in the text.
-        4. STRICT BILINGUAL TRANSLATION: "tr_en" MUST strictly be English. "tr_es" MUST strictly be Spanish.
-        5. PUNCTUATION: You MUST include commas and periods (，。？！) in the 't' array as characters with empty pinyin.
-        6. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t" (list of EXACTLY 2-item lists: [["字", "pinyin"]]), "tr_es", "tr_en".
+        CRITICAL RULES:
+        1. EXACT LENGTH: Generate EXACTLY {num_lines} objects.
+        2. LOGICAL TIMELINES: "明天" (tomorrow) plans cannot be cancelled because it is raining "现在" (now).
+        3. NO ROBOTIC PADDING: Flow naturally. People do NOT repeat full sentences.
+        4. PUNCTUATION: Include commas/periods (，。？！) in 't' with empty pinyin.
+        5. OUTPUT JSON ARRAY ONLY! MUST USE KEYS: "r", "t", "tr_es", "tr_en".
         """
 
         if mode_type == "story":
             prompt = f"""
             {topic_instruction} Level: {level}.
-            Create a continuous narrative Chinese STORY. EXACTLY {num_lines} sentences.
-            - "r" MUST always be "旁白" (Narrator).
-            - ABSOLUTELY NO DIALOGUE! Do NOT use A/B format. Write a pure narrative descriptive paragraph broken into sentences.
-            {vocab_instruction}
-            {common_rules}
+            Create a descriptive Chinese STORY (Narrative paragraph, NO dialogue). EXACTLY {num_lines} sentences.
+            - "r" MUST always be "旁白".
+            {vocab_instruction} {common_rules}
             """
         elif mode_type == "podcast":
-            intro_example = "Welcome to the Long Wen Chinese School podcast! Today we have an interesting topic..." if ui_lang == "English" else "¡Hola a todos! Bienvenidos al podcast de la Escuela de chino Long Wen. Hoy tenemos un tema súper interesante..."
-            outro_example = "That's all for today! Thanks for listening to Long Wen Chinese School, see you next time!" if ui_lang == "English" else "¡Eso es todo por hoy! Gracias por escuchar la Escuela de chino Long Wen, ¡hasta la próxima!"
+            school_es = "Escuela de chino Long Wen"
+            school_en = "Long Wen Chinese School"
+            intro_text = f"Hello everyone! Welcome to the {school_en} podcast. Today's topic is very interesting!" if ui_lang == "English" else f"¡Hola a todos! Bienvenidos al podcast de la {school_es}. ¡Hoy tenemos un tema súper interesante!"
+            outro_text = f"That's all for today! Thanks for listening to {school_en}, see you next time!" if ui_lang == "English" else f"¡Eso es todo por hoy! Gracias por escuchar la {school_es}, ¡hasta la próxima!"
             
             prompt = f"""
             {topic_instruction} Level: {level}.
-            Create a professional PODCAST. EXACTLY {num_lines} lines total.
-            - Line 1 (Intro): "r" MUST be "主持人". Text MUST be entirely in {ui_lang}. Set pinyin to empty string. MUST include the school name! Example: [["{intro_example}", ""]]
-            - Middle Lines: "r" alternates between "美美" and "大卫". Strict HSK {level} Chinese only! {vocab_instruction}. 
-            - Line {num_lines} (Outro): "r" MUST be "主持人". Text MUST be entirely in {ui_lang}. Example: [["{outro_example}", ""]]
+            Create a professional PODCAST. EXACTLY {num_lines} lines.
+            - Line 1 (Intro): "r" MUST be "主持人". Text MUST be entirely in {ui_lang}. YOU MUST FILL THE 't' KEY WITH CONTENT. Example: "t": [["{intro_text}", ""]]
+            - Middle Lines: Dialogue between "美美" and "大卫". Strict HSK {level} Chinese. {vocab_instruction}.
+            - Line {num_lines} (Outro): "r" MUST be "主持人". Text MUST be entirely in {ui_lang}. Example: "t": [["{outro_text}", ""]]
             {common_rules}
             """
         else: # dialogue
-            prompt = f"""
-            {topic_instruction} Level: {level}.
-            Create a rich, continuous conversation. EXACTLY {num_lines} lines.
-            - "r" MUST alternate between "美美" and "大卫".
-            {vocab_instruction}
-            {common_rules}
-            """
+            prompt = f"{topic_instruction} Level: {level}. Create a conversation between '美美' and '大卫'. EXACTLY {num_lines} lines. {vocab_instruction} {common_rules}"
 
         response = model.generate_content(prompt, safety_settings=safety, generation_config=gen_config)
         raw_text = response.text.strip().replace("```json", "").replace("```", "")
@@ -176,35 +162,28 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         st.error(f"AI Generation Error: {str(e)}")
         return None
 
-# --- 4. 音频 ---
+# --- 4. 音频 (🌟 增加主持人内容兜底逻辑) ---
 async def make_audio(data, filename, ui_lang):
     ts = []
     curr = 0.0
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(data):
             role = line.get("r", "美美") 
-            
-            # 🌟 换回最纯正阳光的青年男声：Yunxi (云希)
-            # 如果您想试试稍微成熟一点但也很热情的，可以把这里换成 "zh-CN-YunfengNeural"
-            if role == "大卫": 
-                voice = "zh-CN-YunxiNeural"  
-            elif role == "美美": 
-                voice = "zh-CN-XiaoxiaoNeural"
-            elif role == "旁白": 
-                voice = "zh-CN-XiaoyiNeural"
-            elif role == "主持人": 
-                voice = "es-ES-AbrilNeural" if ui_lang == "Español" else "en-US-JaneNeural"
-            else: 
-                voice = "zh-CN-XiaoxiaoNeural"
+            voice = "zh-CN-YunxiNeural" if role == "大卫" else ("zh-CN-XiaoxiaoNeural" if role == "美美" else ("zh-CN-XiaoyiNeural" if role == "旁白" else ("es-ES-AbrilNeural" if ui_lang == "Español" else "en-US-JaneNeural")))
 
+            # 🚀 强制开嗓：提取文字。如果 AI 抽风留空了，系统根据角色和语言强行填入台词
             raw = "".join([str(item[0]) if isinstance(item, list) else str(item) for item in line.get("t", [])])
+            
+            if not raw.strip() and role == "主持人":
+                if i == 0: # 开场白兜底
+                    raw = "¡Bienvenidos al podcast de Long Wen!" if ui_lang == "Español" else "Welcome to Long Wen podcast!"
+                else: # 结束语兜底
+                    raw = "¡Hasta la próxima!" if ui_lang == "Español" else "See you next time!"
+            
             if not raw: continue
             
             raw_tts = re.sub(r'[^\w\s\u4e00-\u9fa5，。？！.,!?¡¿\']', '', raw)
-            if not raw_tts.strip(): continue 
-            
-            dur = len(raw) * 0.25 + 0.35 
-            if role == "主持人": dur = len(raw) * 0.065 + 0.6 
+            dur = len(raw) * (0.07 if role == "主持人" else 0.25) + 0.5 
             
             ts.append({"start": curr, "end": curr + dur, "role": role})
             try:
@@ -234,29 +213,17 @@ def get_player_html(file_path, ts, mode_type):
     </div>
     <script>
         const p = document.getElementById('p'); const bgm = document.getElementById('bgm'); const ts = {json.dumps(ts)};
-        if ({is_podcast} && bgm) {{ 
-            bgm.volume = 0.12; 
-            p.addEventListener('play', () => bgm.play().catch(e=>console.log(e))); 
-            p.addEventListener('pause', () => bgm.pause()); 
-            p.addEventListener('ended', () => bgm.pause());
-        }}
+        if ({is_podcast} && bgm) {{ bgm.volume = 0.12; p.addEventListener('play', () => bgm.play()); p.addEventListener('pause', () => bgm.pause()); }}
         p.ontimeupdate = () => {{
             const cur = p.currentTime;
             ts.forEach((t, i) => {{
-                const el = window.parent.document.getElementById('row-'+i); const transEl = window.parent.document.getElementById('trans-'+i);
+                const el = window.parent.document.getElementById('row-'+i);
                 if (el) {{
                     if (cur >= t.start && cur < t.end) {{
-                        if ({is_story}) {{ el.classList.add("active-story"); if (transEl) transEl.classList.add("active-story-trans"); }}
-                        else {{ 
-                            el.classList.remove("active-meimei", "active-dawei", "active-host"); 
-                            if (t.role === "大卫") el.classList.add("active-dawei"); 
-                            else if (t.role === "主持人") el.classList.add("active-host");
-                            else el.classList.add("active-meimei"); 
-                        }}
+                        el.classList.add(t.role === "大卫" ? "active-dawei" : (t.role === "主持人" ? "active-host" : (t.role === "旁白" ? "active-story" : "active-meimei")));
                         el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
                     }} else {{
-                        if ({is_story}) {{ el.classList.remove("active-story"); if (transEl) transEl.classList.remove("active-story-trans"); }}
-                        else {{ el.classList.remove("active-meimei", "active-dawei", "active-host"); }}
+                        el.classList.remove("active-meimei", "active-dawei", "active-host", "active-story");
                     }}
                 }}
             }});
@@ -275,7 +242,6 @@ def main():
         topic, level = st.text_input(ui["topic"], ""), st.selectbox(ui["level"], ["HSK 1", "HSK 2", "HSK 3"])
         unit_limit = st.slider(ui["unit"], 1, 15, 15) if level == "HSK 1" else 15
         keys, num_lines = st.text_input(ui["keywords"], ""), st.slider(ui["lines"], 4, 24, 12, 2)
-        
         if st.button(ui["gen_btn"]):
             with st.spinner(ui["loading"]):
                 res = call_ai(topic, level, keys, num_lines, unit_limit, mode_type, ui_lang)
@@ -291,8 +257,7 @@ def main():
             fname = f"audio_{int(time.time())}.mp3"
             st.session_state.ts = asyncio.run(make_audio(st.session_state.current_data, fname, ui_lang))
             st.session_state.audio_file = fname
-            
-        if curr_mode == "podcast": st.markdown('<div class="podcast-card"><p class="podcast-title">🎙️ 中文学习播客 (Chinese Learning Podcast)</p><p class="podcast-subtitle">Escucha y aprende</p></div>', unsafe_allow_html=True)
+        if curr_mode == "podcast": st.markdown('<div class="podcast-card"><p class="podcast-title">🎙️ 中文学习播客 (Chinese Learning Podcast)</p></div>', unsafe_allow_html=True)
         if os.path.exists(st.session_state.audio_file):
             st.components.v1.html(get_player_html(st.session_state.audio_file, st.session_state.ts, curr_mode), height=100)
             if curr_mode == "podcast":
@@ -304,29 +269,15 @@ def main():
             ch_h, tr_h = '<div class="story-chinese">', '<div class="story-trans">'
             for idx, line in enumerate(st.session_state.current_data):
                 trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
-                
                 hanzi = "".join([f'<ruby>{str(it[0]) if isinstance(it,list) else str(it)}<rt>{it[1] if isinstance(it,list) and len(it)>1 else ""}</rt></ruby>' for it in line.get("t", [])])
                 ch_h += f'<span class="story-sentence" id="row-{idx}">{hanzi}</span> '
                 tr_h += f'<span class="story-trans-sentence" id="trans-{idx}">{idx+1}. {trans} </span>'
             html_str += f"{ch_h}</div>{tr_h}</div></div>"
         else:
             for idx, line in enumerate(st.session_state.current_data):
-                role = line.get("r", "美美")
-                trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
-                
-                if role == "大卫":
-                    avatar = "avatar-dawei"
-                    char = "大"
-                elif role == "主持人":
-                    avatar = "avatar-host"
-                    char = "🎧"
-                elif role == "美美":
-                    avatar = ""
-                    char = "美"
-                else: 
-                    avatar = "avatar-narrator"
-                    char = "📖"
-                    
+                role, trans = line.get("r", "美美"), (line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", ""))
+                avatar = "avatar-dawei" if role == "大卫" else ("avatar-host" if role == "主持人" else ("avatar-narrator" if role == "旁白" else ""))
+                char = "🎧" if role == "主持人" else (role[0] if role in ["美美", "大卫"] else "🎙️")
                 hanzi = "".join([f'<ruby>{str(it[0]) if isinstance(it,list) else str(it)}<rt>{it[1] if isinstance(it,list) and len(it)>1 else ""}</rt></ruby>' for it in line.get("t", [])])
                 html_str += f'<div class="cute-row" id="row-{idx}"><div class="cute-avatar {avatar}">{char}</div><div class="cute-chinese">{hanzi}</div><div class="cute-trans">{trans}</div></div>'
         st.markdown(html_str + '</div>', unsafe_allow_html=True)
