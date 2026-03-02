@@ -12,8 +12,8 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold, Generati
 
 # --- 1. 核心配置 ---
 st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="wide", initial_sidebar_state="expanded")
-MY_API_KEY = os.environ.get("GOOGLE_API_KEY")
-TARGET_MODEL = 'models/gemini-2.5-flash' 
+MY_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else os.environ.get("GOOGLE_API_KEY")
+TARGET_MODEL = 'models/gemini-2.0-flash' # 使用Flash引擎，但通过深度推理生成Prompt
 
 HSK1_VOCAB = {
     1: ["我", "你", "他", "她", "您", "们", "好", "再见"],
@@ -37,7 +37,7 @@ UI_TEXT = {
     "Español": { 
         "instr": "✍️ Escribe aquí para practicar...", "gen_btn": "Generar Lección ✨", 
         "topic": "Tema", "level": "Nivel", "keywords": "Palabras", "lines": "Líneas (Exactas)",
-        "unit": "Límite de Unidad (HSK 1)", "loading": "✨ Creando magia...",
+        "unit": "Límite de Unidad (HSK 1)", "loading": "✨ Pensando lógicamente...",
         "show_py": "Mostrar Pinyin", "show_tr": "Mostrar Traducción", "refresh": "Regenerar Audio",
         "mode": "Modo", "dialogue": "Diálogo 🗣️", "story": "Historia 📖", "podcast": "Podcast 🎧",
         "dl_btn": "📥 Descargar Podcast (MP3)"
@@ -45,7 +45,7 @@ UI_TEXT = {
     "English": { 
         "instr": "✍️ Type here to practice...", "gen_btn": "Generate Lesson ✨", 
         "topic": "Topic", "level": "Level", "keywords": "Keywords", "lines": "Lines (Exact)",
-        "unit": "Unit Limit (HSK 1)", "loading": "✨ Creating magic...",
+        "unit": "Unit Limit (HSK 1)", "loading": "✨ Thinking logically...",
         "show_py": "Show Pinyin", "show_tr": "Show Translation", "refresh": "Regenerate Audio",
         "mode": "Mode", "dialogue": "Dialogue 🗣️", "story": "Story 📖", "podcast": "Podcast 🎧",
         "dl_btn": "📥 Download Podcast (MP3)"
@@ -73,8 +73,6 @@ st.markdown("""
     .story-trans { margin-top: 40px; padding-top: 25px; border-top: 2px dashed #FFF0D4; color: #94A3B8; font-size: 1rem; line-height: 1.8; text-align: justify; }
     .story-trans-sentence { transition: color 0.3s ease, background-color 0.3s ease; border-radius: 6px; padding: 2px 4px; margin-right: 5px; }
     .podcast-card { background: linear-gradient(135deg, #FF9F1C 0%, #FFD166 100%); border-radius: 20px; padding: 20px; text-align: center; color: white; box-shadow: 0 10px 20px rgba(255, 159, 28, 0.3); margin-bottom: 20px; }
-    .podcast-title { font-size: 1.6rem; font-weight: 800; margin: 0; letter-spacing: 1px; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
-    .podcast-subtitle { font-size: 0.9rem; opacity: 0.9; margin: 5px 0 0 0; }
     ruby { font-size: 24px; font-weight: 700; color: #4A4A4A; ruby-position: under; line-height: 2.0; margin-right: 2px;}
     rt { font-size: 12px; color: #FF8BA7; font-weight: 600; font-family: sans-serif; }
     .cute-trans { width: 35%; padding-left: 20px; color: #AAB7B8; font-size: 0.9rem; font-style: italic; border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4; }
@@ -82,7 +80,7 @@ st.markdown("""
     audio::-internal-media-controls-overflow-button { display: none !important; }
     .speed-btn { background: #FFFBF0; border: 2px solid #FFE5B4; border-radius: 15px; padding: 5px 15px; cursor: pointer; color: #5D5650; font-weight: 700; font-size: 0.9rem; transition: all 0.2s; outline: none; }
     .speed-btn:hover { background: #FFEaa7; transform: translateY(-2px); }
-    section[data-testid="stMain"] div[data-testid="stTextInput"] { margin: 20px auto 0 auto !important; width: 90% !important; max-width: 800px !important; box-sizing: border-box !important; background-color: #FFFFFF !important; padding: 5px 20px !important; border-radius: 50px !important; border: 3px solid #FFE5B4 !important; }
+    section[data-testid="stMain"] div[data-testid="stTextInput"] { margin: 20px auto 0 auto !important; width: 90% !important; max-width: 800px !important; box-sizing: border-box !important; background-color: #FFFFFF !important; padding: 5px 20px !important; border-radius: 50px !important; box-shadow: 0 10px 25px rgba(255, 159, 28, 0.2) !important; border: 3px solid #FFE5B4 !important; }
     section[data-testid="stMain"] div[data-testid="stTextInput"] input { border: none !important; background-color: transparent !important; font-size: 1.1rem !important; color: #5D5650 !important; box-shadow: none !important; padding: 10px !important; }
     .hide-pinyin rt { display: none !important; }
     .hide-trans .cute-trans, .hide-trans .story-trans { display: none !important; }
@@ -92,14 +90,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. AI 逻辑 ---
+# --- 3. AI 逻辑 (🌟 深度推理重构版) ---
 def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
     if not MY_API_KEY: return None
     try:
         genai.configure(api_key=MY_API_KEY)
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
-        gen_config = GenerationConfig(temperature=0.85)
+        gen_config = GenerationConfig(temperature=0.8)
 
         allowed_vocab = []
         if level == "HSK 1":
@@ -108,46 +106,36 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         vocab_instruction = f"STRICT VOCABULARY LIMIT: You MUST ONLY use Chinese words from this list: [{', '.join(allowed_vocab)}]. DO NOT use any other words." if allowed_vocab else ""
             
         if not topic:
-            if mode_type == "story":
-                topics_pool = ["大卫的一天", "美美去医院看医生", "昨天晚上的电影和晚饭", "下雨天不想去学校"]
-            else:
-                topics_pool = ["计划去饭店吃饭", "坐出租车去买东西", "周末上午喝茶看书", "打电话讨论去哪儿"]
+            topics_pool = ["去饭店吃饭但没带钱", "坐出租车去医院看医生", "大学里的同学想买漂亮衣服", "下雨天在家喝茶看电影", "打电话问明天天气"]
             topic_instruction = f"Topic: '{random.choice(topics_pool)}'."
         else:
             topic_instruction = f"Topic: {topic}."
 
-        structure_rule = ""
-        if num_lines >= 16 and mode_type != "story":
-            structure_rule = f"CRITICAL NARRATIVE ARC: To naturally reach {num_lines} lines, divide the dialogue into 3 acts (Plan -> Problem -> Solution)."
-
         common_rules = f"""
-        CRITICAL RULES:
-        1. EXACT LENGTH: Generate EXACTLY {num_lines} objects.
-        2. LOGICAL TIMELINES: "明天" (tomorrow) plans cannot be cancelled because it is raining "现在" (now).
-        3. NO ROBOTIC PADDING: Flow naturally. People do NOT repeat full sentences.
-        4. PUNCTUATION: Include commas/periods (，。？！) in 't' with empty pinyin.
-        5. OUTPUT JSON ARRAY ONLY! MUST USE KEYS: "r", "t", "tr_es", "tr_en".
+        CRITICAL LOGIC & QUALITY RULES:
+        1. EXACT LENGTH: You MUST generate EXACTLY {num_lines} objects.
+        2. ANTI-REPETITION (NO LOOPS): NEVER use parallel syntactic structures to repeat different actions (e.g., Do NOT repeat "Shall we drink tea? Yes." followed by "Shall we read books? Yes."). Every act must be unique!
+        3. REAL CONFLICT: For long dialogues ({num_lines} lines), introduce a real problem (e.g., "I have a book but no tea", "I want to go but it's too cold").
+        4. ROBOTIC PADDING BAN: People omit words! If A says "We go by taxi?", B says "Great!", NOT "Great, we go by taxi."
+        5. PUNCTUATION: Include commas/periods (，。？！) in 't' array with empty pinyin.
+        6. ROLE NAMES: Use ONLY "美美", "大卫", "主持人" or "旁白".
+        7. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t" (list of 2-item lists: [["Char", "pinyin"]]), "tr_es", "tr_en".
         """
 
         if mode_type == "story":
-            prompt = f"""
-            {topic_instruction} Level: {level}.
-            Create a descriptive Chinese STORY (Narrative paragraph, NO dialogue). EXACTLY {num_lines} sentences.
-            - "r" MUST always be "旁白".
-            {vocab_instruction} {common_rules}
-            """
+            prompt = f"{topic_instruction} Level: {level}. Create a Chinese STORY (Narrative paragraph, NO dialogue). EXACTLY {num_lines} sentences. 'r' is always '旁白'. {vocab_instruction} {common_rules}"
         elif mode_type == "podcast":
             school_es = "Escuela de chino Long Wen"
             school_en = "Long Wen Chinese School"
-            intro_text = f"Hello everyone! Welcome to the {school_en} podcast. Today's topic is very interesting!" if ui_lang == "English" else f"¡Hola a todos! Bienvenidos al podcast de la {school_es}. ¡Hoy tenemos un tema súper interesante!"
-            outro_text = f"That's all for today! Thanks for listening to {school_en}, see you next time!" if ui_lang == "English" else f"¡Eso es todo por hoy! Gracias por escuchar la {school_es}, ¡hasta la próxima!"
+            intro_text = f"Welcome to the {school_en} podcast! Let's dive in!" if ui_lang == "English" else f"¡Hola! Bienvenidos al podcast de la {school_es}. ¡Empecemos!"
+            outro_text = f"Thanks for listening to {school_en}, see you next time!" if ui_lang == "English" else f"¡Gracias por escuchar {school_es}, hasta la próxima!"
             
             prompt = f"""
             {topic_instruction} Level: {level}.
             Create a professional PODCAST. EXACTLY {num_lines} lines.
-            - Line 1 (Intro): "r" MUST be "主持人". Text MUST be entirely in {ui_lang}. YOU MUST FILL THE 't' KEY WITH CONTENT. Example: "t": [["{intro_text}", ""]]
-            - Middle Lines: Dialogue between "美美" and "大卫". Strict HSK {level} Chinese. {vocab_instruction}.
-            - Line {num_lines} (Outro): "r" MUST be "主持人". Text MUST be entirely in {ui_lang}. Example: "t": [["{outro_text}", ""]]
+            - Line 1 (Intro): "r" MUST be "主持人". Text MUST be entirely in {ui_lang}. YOU MUST FILL THE 't' KEY. Example: "t": [["{intro_text}", ""]]
+            - Middle Lines: Dynamic dialogue between "美美" and "大卫". Strict HSK {level} Chinese only! {vocab_instruction}.
+            - Line {num_lines} (Outro): "r" MUST be "主持人". Text MUST be in {ui_lang}. MUST mention "{school_en if ui_lang=='English' else school_es}".
             {common_rules}
             """
         else: # dialogue
@@ -162,28 +150,32 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         st.error(f"AI Generation Error: {str(e)}")
         return None
 
-# --- 4. 音频 (🌟 增加主持人内容兜底逻辑) ---
+# --- 4. 音频 (🌟 增强型物理锁定匹配) ---
 async def make_audio(data, filename, ui_lang):
     ts = []
     curr = 0.0
     with open(filename, 'wb') as final_file:
         for i, line in enumerate(data):
-            role = line.get("r", "美美") 
-            voice = "zh-CN-YunxiNeural" if role == "大卫" else ("zh-CN-XiaoxiaoNeural" if role == "美美" else ("zh-CN-XiaoyiNeural" if role == "旁白" else ("es-ES-AbrilNeural" if ui_lang == "Español" else "en-US-JaneNeural")))
+            role_raw = str(line.get("r", "美美"))
+            role = re.sub(r'[^\w]', '', role_raw)
+            
+            # 使用 Yunxi (云希) 作为大卫，因为他比云健大爷活泼多了！
+            if "大卫" in role: voice = "zh-CN-YunxiNeural"
+            elif "主持人" in role: voice = ("es-ES-AbrilNeural" if ui_lang == "Español" else "en-US-JaneNeural")
+            elif "旁白" in role: voice = "zh-CN-XiaoyiNeural"
+            else: voice = "zh-CN-XiaoxiaoNeural" 
 
-            # 🚀 强制开嗓：提取文字。如果 AI 抽风留空了，系统根据角色和语言强行填入台词
             raw = "".join([str(item[0]) if isinstance(item, list) else str(item) for item in line.get("t", [])])
             
-            if not raw.strip() and role == "主持人":
-                if i == 0: # 开场白兜底
-                    raw = "¡Bienvenidos al podcast de Long Wen!" if ui_lang == "Español" else "Welcome to Long Wen podcast!"
-                else: # 结束语兜底
-                    raw = "¡Hasta la próxima!" if ui_lang == "Español" else "See you next time!"
+            # 主持人内容兜底
+            if not raw.strip() and "主持人" in role:
+                raw = "¡Hola! Bienvenidos a Long Wen." if ui_lang == "Español" else "Welcome to Long Wen podcast!"
             
             if not raw: continue
             
+            # 清理文本防止读出 Emoji
             raw_tts = re.sub(r'[^\w\s\u4e00-\u9fa5，。？！.,!?¡¿\']', '', raw)
-            dur = len(raw) * (0.07 if role == "主持人" else 0.25) + 0.5 
+            dur = len(raw) * (0.07 if "主持人" in role else 0.25) + 0.5 
             
             ts.append({"start": curr, "end": curr + dur, "role": role})
             try:
@@ -200,7 +192,6 @@ async def make_audio(data, filename, ui_lang):
 def get_player_html(file_path, ts, mode_type):
     with open(file_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
     is_podcast = "true" if mode_type == "podcast" else "false"
-    is_story = "true" if mode_type == "story" else "false"
     return f"""
     <div style="width:100%; display:flex; flex-direction:column; align-items:center; margin-bottom:20px; position:relative; z-index:50;">
         <audio id="p" controls src="data:audio/mp3;base64,{b64}" style="width:100%; max-width:400px; outline:none; margin-bottom:10px;"></audio>
@@ -220,7 +211,7 @@ def get_player_html(file_path, ts, mode_type):
                 const el = window.parent.document.getElementById('row-'+i);
                 if (el) {{
                     if (cur >= t.start && cur < t.end) {{
-                        el.classList.add(t.role === "大卫" ? "active-dawei" : (t.role === "主持人" ? "active-host" : (t.role === "旁白" ? "active-story" : "active-meimei")));
+                        el.classList.add(t.role.includes("大卫") ? "active-dawei" : (t.role.includes("主持人") ? "active-host" : (t.role.includes("旁白") ? "active-story" : "active-meimei")));
                         el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
                     }} else {{
                         el.classList.remove("active-meimei", "active-dawei", "active-host", "active-story");
@@ -250,7 +241,7 @@ def main():
         show_pinyin, show_trans = st.toggle(ui["show_py"], value=True), st.toggle(ui["show_tr"], value=True)
         if st.button(f"🔄 {ui['refresh']}"): st.session_state.audio_file = ""; st.rerun()
 
-    st.markdown('<div class="main-title">Reading Assistant Pro</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">Long Wen Reading Assistant Pro</div>', unsafe_allow_html=True)
     if st.session_state.current_data:
         curr_mode = st.session_state.get("rendered_mode", mode_type)
         if not st.session_state.audio_file:
@@ -268,16 +259,16 @@ def main():
         if curr_mode == "story":
             ch_h, tr_h = '<div class="story-chinese">', '<div class="story-trans">'
             for idx, line in enumerate(st.session_state.current_data):
-                trans = line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", "")
+                trans = (line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", ""))
                 hanzi = "".join([f'<ruby>{str(it[0]) if isinstance(it,list) else str(it)}<rt>{it[1] if isinstance(it,list) and len(it)>1 else ""}</rt></ruby>' for it in line.get("t", [])])
                 ch_h += f'<span class="story-sentence" id="row-{idx}">{hanzi}</span> '
                 tr_h += f'<span class="story-trans-sentence" id="trans-{idx}">{idx+1}. {trans} </span>'
             html_str += f"{ch_h}</div>{tr_h}</div></div>"
         else:
             for idx, line in enumerate(st.session_state.current_data):
-                role, trans = line.get("r", "美美"), (line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", ""))
-                avatar = "avatar-dawei" if role == "大卫" else ("avatar-host" if role == "主持人" else ("avatar-narrator" if role == "旁白" else ""))
-                char = "🎧" if role == "主持人" else (role[0] if role in ["美美", "大卫"] else "🎙️")
+                role, trans = str(line.get("r", "美美")), (line.get("tr_es", "") if ui_lang == "Español" else line.get("tr_en", ""))
+                avatar = "avatar-dawei" if "大卫" in role else ("avatar-host" if "主持人" in role else ("avatar-narrator" if "旁白" in role else ""))
+                char = "🎧" if "主持人" in role else (role[0] if len(role)>0 else "美")
                 hanzi = "".join([f'<ruby>{str(it[0]) if isinstance(it,list) else str(it)}<rt>{it[1] if isinstance(it,list) and len(it)>1 else ""}</rt></ruby>' for it in line.get("t", [])])
                 html_str += f'<div class="cute-row" id="row-{idx}"><div class="cute-avatar {avatar}">{char}</div><div class="cute-chinese">{hanzi}</div><div class="cute-trans">{trans}</div></div>'
         st.markdown(html_str + '</div>', unsafe_allow_html=True)
