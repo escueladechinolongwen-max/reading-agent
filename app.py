@@ -77,7 +77,6 @@ st.markdown("""
     ruby { font-size: 24px; font-weight: 700; color: #4A4A4A; ruby-position: under; line-height: 2.0; margin-right: 2px;}
     rt { font-size: 12px; color: #FF8BA7; font-weight: 600; font-family: sans-serif; }
     
-    /* 超纲词专属高亮样式 */
     .oov-word { color: #D35400 !important; border-bottom: 2px dotted #D35400; cursor: help; position: relative;}
     .oov-star { color: #E74C3C; font-size: 14px; position: relative; top: -10px; margin-left: 2px;}
     
@@ -103,13 +102,17 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         genai.configure(api_key=MY_API_KEY)
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
-        gen_config = GenerationConfig(temperature=0.8)
+        
+        # 🚀 绝杀手段：直接启用 API 的原生 JSON 模式，彻底杜绝丢逗号、格式写错等低级错误！
+        gen_config = GenerationConfig(
+            temperature=0.8,
+            response_mime_type="application/json" 
+        )
 
         allowed_vocab = []
         if level == "HSK 1":
             for i in range(1, unit_limit + 1): allowed_vocab.extend(HSK1_VOCAB.get(i, []))
         
-        # 🌟 超纲词 (OOV) 规则加入
         vocab_instruction = f"""
         VOCABULARY RULE: Primarily use Chinese words from this list: [{', '.join(allowed_vocab)}]. 
         NATURALNESS EXCEPTION (OOV): To make the dialogue flow naturally, you are allowed to use a MAXIMUM of 3 Out-Of-Vocabulary (OOV) words (e.g., 绿茶, 红茶, 手机).
@@ -121,23 +124,24 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         else:
             topic_instruction = f"Topic: {topic}."
 
-        # 🌟 修复拼音丢失：强锁格式
         common_rules = f"""
         CRITICAL FORMAT & QUALITY RULES:
-        1. ARRAY FORMAT LOCK: The 't' array MUST contain nested lists. DO NOT output flat strings.
-           - Standard word: ["word", "pinyin"] -> e.g., ["好", "hǎo"]
-           - Punctuation: ["punc", ""] -> e.g., ["，", ""]
-           - IF YOU USE AN OOV WORD (Out-of-vocabulary), you MUST format it as a 3-item list: ["word", "pinyin", "Translation in {ui_lang}"] -> e.g., ["绿茶", "lǜchá", "green tea"].
-        2. EXACT LENGTH: Generate EXACTLY {num_lines} objects.
-        3. NO ROBOTIC REPETITION: Do NOT repeat the same sentence patterns. Omit verbs/nouns that were just said.
-        4. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t", "tr_es", "tr_en".
+        1. YOU MUST OUTPUT A VALID JSON ARRAY OF OBJECTS. NO markdown blocks.
+        2. ARRAY FORMAT: The 't' array MUST contain nested lists. DO NOT output flat strings.
+           - Standard word: ["word", "pinyin"]
+           - Punctuation: ["punc", ""]
+           - OOV Word (Out-of-vocabulary): MUST format as a 3-item list ["word", "pinyin", "Translation in {ui_lang}"].
+        3. EXACT LENGTH: Generate EXACTLY {num_lines} objects.
+        4. NO ROBOTIC REPETITION: Do NOT repeat the same sentence patterns. Omit verbs/nouns that were just said.
+        5. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t", "tr_es", "tr_en".
         """
 
         if mode_type == "story":
             prompt = f"""
             {topic_instruction} Level: {level}. 
             Create a descriptive Chinese STORY. EXACTLY {num_lines} sentences.
-            - "r" MUST always be "旁白". ABSOLUTELY NO DIALOGUE! Write pure narrative prose.
+            - "r" MUST always be "旁白" (Narrator).
+            - ABSOLUTELY NO DIALOGUE! Do NOT use A/B format. Write pure narrative prose.
             {vocab_instruction} {common_rules}
             """
         elif mode_type == "podcast":
@@ -156,9 +160,10 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             prompt = f"{topic_instruction} Level: {level}. Conversation between '美美' and '大卫'. EXACTLY {num_lines} lines. NO REPETITION of full sentences. {vocab_instruction} {common_rules}"
 
         response = model.generate_content(prompt, safety_settings=safety, generation_config=gen_config)
-        raw_text = response.text.strip().replace("```json", "").replace("```", "")
-        match = re.search(r'\[.*\]', raw_text, re.DOTALL)
-        return json.loads(match.group(0)) if match else json.loads(raw_text)
+        
+        # 既然开启了 json mode，出来的文本 100% 是 json
+        raw_text = response.text.strip()
+        return json.loads(raw_text)
             
     except Exception as e:
         st.error(f"AI Generation Error: {str(e)}")
@@ -275,7 +280,6 @@ def main():
                     if isinstance(it, list):
                         c = str(it[0]) if len(it) > 0 else ""
                         p = str(it[1]) if len(it) > 1 else ""
-                        # 🌟 判断是否是带有翻译的超纲词
                         if len(it) > 2 and it[2]:
                             oov_trans = str(it[2])
                             hanzi += f'<ruby class="oov-word" title="超纲: {oov_trans}">{c}<span class="oov-star">*</span><rt>{p}</rt></ruby>'
@@ -298,7 +302,6 @@ def main():
                     if isinstance(it, list):
                         c = str(it[0]) if len(it) > 0 else ""
                         p = str(it[1]) if len(it) > 1 else ""
-                        # 🌟 判断是否是带有翻译的超纲词
                         if len(it) > 2 and it[2]:
                             oov_trans = str(it[2])
                             hanzi += f'<ruby class="oov-word" title="超纲 (OOV): {oov_trans}">{c}<span class="oov-star">*</span><rt>{p}</rt></ruby>'
