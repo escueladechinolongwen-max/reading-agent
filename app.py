@@ -14,7 +14,6 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold, Generati
 st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="wide", initial_sidebar_state="expanded")
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY") 
 
-# 🚀 引擎已切换回你指定的 gemini-2.5-flash
 TARGET_MODEL = 'models/gemini-2.5-flash' 
 
 HSK1_VOCAB = {
@@ -39,7 +38,7 @@ UI_TEXT = {
     "Español": { 
         "instr": "✍️ Escribe aquí para practicar...", "gen_btn": "Generar Lección ✨", 
         "topic": "Tema", "level": "Nivel", "keywords": "Palabras", "lines": "Líneas (Exactas)",
-        "unit": "Límite de Unidad (HSK 1)", "loading": "✨ Procesando lógica de la historia...",
+        "unit": "Límite de Unidad (HSK 1)", "loading": "✨ Procesando magia...",
         "show_py": "Mostrar Pinyin", "show_tr": "Mostrar Traducción", "refresh": "Regenerar Audio",
         "mode": "Modo", "dialogue": "Diálogo 🗣️", "story": "Historia 📖", "podcast": "Podcast 🎧",
         "dl_btn": "📥 Descargar Podcast (MP3)"
@@ -47,7 +46,7 @@ UI_TEXT = {
     "English": { 
         "instr": "✍️ Type here to practice...", "gen_btn": "Generate Lesson ✨", 
         "topic": "Topic", "level": "Level", "keywords": "Keywords", "lines": "Lines (Exact)",
-        "unit": "Unit Limit (HSK 1)", "loading": "✨ Processing story logic...",
+        "unit": "Unit Limit (HSK 1)", "loading": "✨ Creating magic...",
         "show_py": "Show Pinyin", "show_tr": "Show Translation", "refresh": "Regenerate Audio",
         "mode": "Mode", "dialogue": "Dialogue 🗣️", "story": "Story 📖", "podcast": "Podcast 🎧",
         "dl_btn": "📥 Download Podcast (MP3)"
@@ -116,33 +115,38 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         
         vocab_instruction = f"""
         VOCABULARY RULE: Primarily use Chinese words from this list: [{', '.join(allowed_vocab)}]. 
-        NATURALNESS EXCEPTION (OOV): To make the dialogue flow naturally, you are allowed to use a MAXIMUM of 3 Out-Of-Vocabulary (OOV) words (e.g., 绿茶, 红茶, 手机).
+        NATURALNESS EXCEPTION (OOV): To make the text flow naturally, you are allowed to use a MAXIMUM of 3 Out-Of-Vocabulary (OOV) words (e.g., 绿茶, 颜色, 手机).
         """ if allowed_vocab else ""
             
         if not topic:
-            topics_pool = ["去饭店吃饭点菜", "打车去医院看朋友", "下雨天在家喝茶看电影", "计划明天去买漂亮衣服"]
+            topics_pool = ["去饭店吃饭", "打车去医院看医生", "下雨天在家喝茶", "明天去买漂亮的衣服"]
             topic_instruction = f"Topic: '{random.choice(topics_pool)}'."
         else:
             topic_instruction = f"Topic: {topic}."
 
         common_rules = f"""
         CRITICAL FORMAT & QUALITY RULES:
-        1. YOU MUST OUTPUT A VALID JSON ARRAY OF OBJECTS. NO markdown blocks.
-        2. ARRAY FORMAT: The 't' array MUST contain nested lists. DO NOT output flat strings.
+        1. YOU MUST OUTPUT A VALID JSON ARRAY OF OBJECTS. 
+        2. ARRAY FORMAT: The 't' array MUST contain nested lists.
            - Standard word: ["word", "pinyin"]
            - Punctuation: ["punc", ""]
            - OOV Word (Out-of-vocabulary): MUST format as a 3-item list ["word", "pinyin", "Translation in {ui_lang}"].
         3. EXACT LENGTH: Generate EXACTLY {num_lines} objects.
-        4. NO ROBOTIC REPETITION: Do NOT repeat the same sentence patterns. Omit verbs/nouns that were just said.
-        5. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t", "tr_es", "tr_en".
+        4. OUTPUT JSON ARRAY ONLY! EXACT KEYS: "r", "t", "tr_es", "tr_en".
         """
 
         if mode_type == "story":
+            # 🌟 重点修复：释放 HSK 1 语法潜力，同时拉黑导致病句的高级语法
             prompt = f"""
             {topic_instruction} Level: {level}. 
             Create a descriptive Chinese STORY. EXACTLY {num_lines} sentences.
             - "r" MUST always be "旁白" (Narrator).
-            - ABSOLUTELY NO DIALOGUE! Do NOT use A/B format. Write pure narrative prose.
+            - PURE NARRATIVE: ABSOLUTELY NO DIALOGUE! Do NOT use A/B format.
+            - GRAMMAR RULE (NATURAL HSK 1): You are ENCOURAGED to use proper HSK 1 long sentences. You can use time words (今天上午), location phrases (在商店里), auxiliary verbs (想, 会, 能), adverbs (都, 也, 很), and serial verbs (去商店买衣服).
+            - BLACKLISTED GRAMMAR (DO NOT USE): 
+              1. DO NOT use the adverbial particle "地" (de). (WRONG: 很高兴地买衣服。 CORRECT: 很高兴。去买衣服。/ 很高兴去买衣服。)
+              2. DO NOT use the degree complement "得" (de). (WRONG: 吃饭吃得高兴。 CORRECT: 我们吃饭，很高兴。)
+              3. DO NOT use "和" (and) to connect verbs or sentences! "和" can ONLY connect nouns/pronouns. (WRONG: 我回家和看书。 CORRECT: 我回家，也看书。)
             {vocab_instruction} {common_rules}
             """
         elif mode_type == "podcast":
@@ -153,7 +157,7 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             prompt = f"""
             {topic_instruction} Level: {level}. Professional PODCAST. EXACTLY {num_lines} lines.
             - Line 1: "r" is "主持人". Text in {ui_lang}. Example: "t": [["{intro_text}", ""]]
-            - Middle Lines: Dialogue between "美美" and "大卫". USE NATURAL OMISSIONS.
+            - Middle Lines: Dialogue between "美美" and "大卫". USE NATURAL OMISSIONS (omit repeated verbs/nouns). Do NOT repeat the same sentence patterns.
             - Line {num_lines}: "r" is "主持人". Text in {ui_lang}. Example: "t": [["{outro_text}", ""]]
             {vocab_instruction} {common_rules}
             """
@@ -177,10 +181,14 @@ async def make_audio(data, filename, ui_lang):
             role_raw = str(line.get("r", "美美"))
             role = re.sub(r'[^\w]', '', role_raw)
             
-            if "大卫" in role: voice = "zh-CN-YunxiNeural"
-            elif "主持人" in role: voice = ("es-ES-AbrilNeural" if ui_lang == "Español" else "en-US-AvaNeural")
-            elif "旁白" in role: voice = "zh-CN-XiaoyiNeural"
-            else: voice = "zh-CN-XiaoxiaoNeural" 
+            if "大卫" in role: 
+                voice = "zh-CN-YunxiNeural"
+            elif "主持人" in role: 
+                voice = ("es-MX-DaliaNeural" if ui_lang == "Español" else "en-US-JennyNeural")
+            elif "旁白" in role: 
+                voice = "zh-CN-XiaoyiNeural"
+            else: 
+                voice = "zh-CN-XiaoxiaoNeural" 
 
             raw = "".join([str(item[0]) if isinstance(item, list) else str(item) for item in line.get("t", [])])
             
