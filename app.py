@@ -13,7 +13,9 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold, Generati
 # --- 1. 核心配置 ---
 st.set_page_config(page_title="Long Wen Reading Pro", page_icon="🐼", layout="wide", initial_sidebar_state="expanded")
 MY_API_KEY = os.environ.get("GOOGLE_API_KEY") 
-TARGET_MODEL = 'models/gemini-2.0-flash' 
+
+# 🚀 引擎已切换回你指定的 gemini-2.5-flash
+TARGET_MODEL = 'models/gemini-2.5-flash' 
 
 HSK1_VOCAB = {
     1: ["我", "你", "他", "她", "您", "们", "好", "再见"],
@@ -103,7 +105,6 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
         
-        # 🚀 绝杀手段：直接启用 API 的原生 JSON 模式，彻底杜绝丢逗号、格式写错等低级错误！
         gen_config = GenerationConfig(
             temperature=0.8,
             response_mime_type="application/json" 
@@ -160,8 +161,6 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             prompt = f"{topic_instruction} Level: {level}. Conversation between '美美' and '大卫'. EXACTLY {num_lines} lines. NO REPETITION of full sentences. {vocab_instruction} {common_rules}"
 
         response = model.generate_content(prompt, safety_settings=safety, generation_config=gen_config)
-        
-        # 既然开启了 json mode，出来的文本 100% 是 json
         raw_text = response.text.strip()
         return json.loads(raw_text)
             
