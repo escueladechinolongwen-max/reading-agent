@@ -37,7 +37,7 @@ UI_TEXT = {
     "Español": { 
         "instr": "✍️ Escribe aquí para practicar...", "gen_btn": "Generar Lección ✨", 
         "topic": "Tema", "level": "Nivel", "keywords": "Palabras", "lines": "Líneas (Exactas)",
-        "unit": "Límite de Unidad (HSK 1)", "loading": "✨ Aplicando pedagogía Long Wen...",
+        "unit": "Límite de Unidad (HSK 1)", "loading": "✨ Optimizando estructura y lógica...",
         "show_py": "Mostrar Pinyin", "show_tr": "Mostrar Traducción", "refresh": "Regenerar Audio",
         "mode": "Modo", "dialogue": "Diálogo 🗣️", "story": "Historia 📖", "podcast": "Podcast 🎧",
         "dl_btn": "📥 Descargar Podcast (MP3)"
@@ -45,7 +45,7 @@ UI_TEXT = {
     "English": { 
         "instr": "✍️ Type here to practice...", "gen_btn": "Generate Lesson ✨", 
         "topic": "Topic", "level": "Level", "keywords": "Keywords", "lines": "Lines (Exact)",
-        "unit": "Unit Limit (HSK 1)", "loading": "✨ Applying Long Wen pedagogy...",
+        "unit": "Unit Limit (HSK 1)", "loading": "✨ Optimizing structure and logic...",
         "show_py": "Show Pinyin", "show_tr": "Show Translation", "refresh": "Regenerate Audio",
         "mode": "Mode", "dialogue": "Dialogue 🗣️", "story": "Story 📖", "podcast": "Podcast 🎧",
         "dl_btn": "📥 Download Podcast (MP3)"
@@ -76,7 +76,7 @@ st.markdown("""
     .podcast-title { font-size: 1.6rem; font-weight: 800; margin: 0; letter-spacing: 1px; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
     ruby { font-size: 24px; font-weight: 700; color: #4A4A4A; ruby-position: under; line-height: 2.0; margin-right: 2px;}
     rt { font-size: 12px; color: #FF8BA7; font-weight: 600; font-family: sans-serif; }
-    .oov-word { color: #D35400 !important; border-bottom: 2px dotted #D35400; cursor: help; position: relative;}
+    .oov-word { color: #D35400 !important; border-bottom: 2px dotted #D35400; cursor: help; position: relative; background-color: #FFF5EE; padding: 0 2px; border-radius: 4px;}
     .oov-star { color: #E74C3C; font-size: 14px; position: relative; top: -10px; margin-left: 2px;}
     .cute-trans { width: 35%; padding-left: 20px; color: #AAB7B8; font-size: 0.9rem; font-style: italic; border-left: 2px solid #F0F3F4; display: flex; align-items: center; line-height: 1.4; }
     audio::-webkit-media-controls-enclosure { border-radius: 20px; }
@@ -92,10 +92,12 @@ st.markdown("""
     .active-story { background-color: #F4EFFF !important; } 
     .active-story-trans { color: #8758FF !important; background-color: #F4EFFF !important; font-weight: bold; } 
     .active-host { background-color: #FFF0F6 !important; border-radius: 12px; }
+    /* 故事模式段落间距 */
+    .story-paragraph-break { display: block; height: 18px; width: 100%; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. AI 逻辑 (🌟 融入终极教学法剧本锁与动态行数计算) ---
+# --- 3. AI 逻辑 ---
 def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
     if not MY_API_KEY: return None
     try:
@@ -110,29 +112,33 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         
         if not topic:
             topics_pool = ["去饭店吃饭点菜", "坐出租车去买东西", "下雨天在家喝茶", "计划去医院看朋友"]
-            topic_str = f"Topic: '{random.choice(topics_pool)}'."
+            raw_topic = random.choice(topics_pool)
+            topic_str = f"Topic: '{raw_topic}'."
+            pure_topic = raw_topic
         else:
             topic_str = f"Topic: {topic}."
+            pure_topic = topic
         
         vocab_instr = f"""
-        VOCABULARY RULE: Base vocabulary: [{', '.join(allowed_vocab)}]. Max 3 OOV words allowed. Every OOV word MUST be a 3-item list: ["word", "pinyin", "Translation"].
-        IMPORTANT: Character names (美美, 大卫) and roles (主持人, 旁白) are NOT OOV. Do NOT mark them as OOV or add translations for them.
+        VOCABULARY RULE: Base vocabulary: [{', '.join(allowed_vocab)}]. 
+        WARNING: Words like 决定, 找, 非常, 可以 are NOT in the list! You MUST treat them as OOV.
+        CRITICAL OOV FORMAT: Max 3 OOV words allowed. Every OOV word MUST be a cleanly nested array. 
+        EXAMPLE OF CORRECT OOV FORMAT in the 't' array: [["喝", "hē"], ["咖啡", "kāfēi", "coffee"]] -> DO NOT output stringified lists!
+        IMPORTANT: Character names (美美, 大卫) and roles (主持人, 旁白) are NOT OOV.
         """
             
         common_rules = f"""
         CRITICAL RULES (MUST STRICTLY FOLLOW):
         1. JSON ARRAY ONLY: You MUST output a valid JSON array `[...]` of EXACTLY {num_lines} objects.
-        2. PUNCTUATION PLACEMENT: Punctuation (，。？！) MUST be placed in the character slot with an EMPTY pinyin string (e.g., ["。", ""]). ABSOLUTELY NO PUNCTUATION OR "punc" TEXT ALLOWED INSIDE THE PINYIN STRING (WRONG: ["吗", "ma?"], CORRECT: ["吗", "ma"], ["？", ""]).
-        3. GRAMMAR: Use HSK1 properly. Do NOT use '地', '得', or '和' to connect verbs.
-        4. KEYS: "r", "t" (array of lists), "tr_es", "tr_en".
+        2. PUNCTUATION: Punctuation (，。？！) MUST be placed in the character slot with an EMPTY pinyin string (e.g., ["。", ""]). NO PUNCTUATION ALLOWED INSIDE PINYIN.
         """
 
         if mode_type == "story":
             prompt = f"""
             {topic_str} Create a highly cohesive narrative STORY. EXACTLY {num_lines} sentences. "r" is "旁白".
             - STORY FRAMEWORK (TIME PROGRESSION): Must have a clear timeline (e.g. 昨天 -> 今天 -> 明天下午). 
-            - NO CHOPPY SENTENCES: Combine ideas into fluid sentences. Use proper conjunctions and location markers.
-            - ABSOLUTELY NO DIALOGUE. Pure prose only.
+            - NO CHOPPY SENTENCES: Combine ideas into fluid sentences.
+            - ABSOLUTELY NO DIALOGUE.
             {vocab_instr} {common_rules}
             """
         elif mode_type == "podcast":
@@ -143,22 +149,27 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             prompt = f"""
             {topic_str} Create a professional PODCAST. EXACTLY {num_lines} lines total.
             - Line 1 MUST BE: "r": "主持人", "t": [["{intro1}", ""]]
-            - Line 2 MUST BE: "r": "美美", "t": [[Chinese Topic Name, ""]]
+            - Line 2 MUST BE: "r": "美美", "t": [["{pure_topic}", ""]]
             - Line 3 MUST BE: "r": "主持人", "t": [["{intro3}", ""]]
-            - Lines 4 to {num_lines - 1}: Natural, ADULT-LIKE conversation between 美美 and 大卫 ONLY. PODCAST FRAMEWORK (CONTRASTING OPINIONS): They must discuss their different preferences on the topic. DO NOT interrogate or ask rapid-fire questions.
+            - Lines 4 to {num_lines - 1}: STRICT TURN-TAKING conversation between 美美 and 大卫 ONLY. They MUST alternate (A, B, A, B). NEVER allow the same character to speak two lines in a row. They must debate their different preferences.
             - Line {num_lines} MUST BE: "r": "主持人", "t": [["{outro}", ""]]
             {vocab_instr} {common_rules}
             """
         else: # Dialogue
             prompt = f"""
             {topic_str} Create a TASK-DRIVEN conversation between '美美' and '大卫'. EXACTLY {num_lines} lines. 
-            - DIALOGUE FRAMEWORK (TASK-BASED): A proposes a goal -> B presents a minor obstacle or asks for details -> they negotiate -> agree on action.
-            - NATIVE LOGIC (NO PARROTING): DO NOT repeat the other person's exact words. If A says "去医院", B must reply with natural ellipses like "好啊，几点？" or "太远了" (NEVER "去医院？好。"). Speak like smart adults.
+            - STRICT TURN-TAKING: They MUST alternate speaking (Meimei, Dawei, Meimei, Dawei). NEVER allow the same character to speak two lines in a row.
+            - TASK-BASED: A proposes a goal -> B presents an obstacle -> negotiate -> agree.
+            - NO PARROTING: Use natural ellipses ("好啊", "几点去").
             {vocab_instr} {common_rules}
             """
 
         response = model.generate_content(prompt, safety_settings=safety, generation_config=gen_config)
-        return json.loads(response.text.strip())
+        raw_text = response.text.strip()
+        # 🌟 医疗级 JSON 自动缝合器
+        raw_text = re.sub(r'(\]|\})\s*(\[|\{)', r'\1, \2', raw_text)
+        return json.loads(raw_text)
+        
     except Exception as e:
         st.error(f"AI Error: {str(e)}")
         return None
@@ -255,7 +266,7 @@ def main():
                 res = call_ai(topic, level, keys, num_lines, unit_limit, mode_type, ui_lang)
                 if res: st.session_state.current_data, st.session_state.audio_file, st.session_state.rendered_mode = res, "", mode_type; st.rerun()
         st.divider()
-        show_py, show_tr = st.toggle(ui["show_py"], value=True), st.toggle(ui["show_tr"], value=True)
+        show_py, show_tr = st.toggle("Mostrar Pinyin", value=True), st.toggle("Mostrar Traducción", value=True)
         if st.button(f"🔄 {ui['refresh']}"): st.session_state.audio_file = ""; st.rerun()
 
     st.markdown('<div class="main-title">Long Wen Reading Assistant Pro</div>', unsafe_allow_html=True)
@@ -285,7 +296,6 @@ def main():
                 hanzi = ""
                 for it in line.get("t", []):
                     if isinstance(it, list):
-                        # 🚀 精准净化：只过滤那些让页面崩溃的标点和幽灵 punc，不误伤带有撇号的合法拼音
                         c = str(it[0]).replace("punc", "，")
                         p = str(it[1]).replace("!", "").replace("?", "").replace(".", "").replace(",", "").replace(";", "").replace(":", "").replace("punc", "") if len(it)>1 else ""
                         if len(it)>2 and it[2]: 
@@ -294,6 +304,12 @@ def main():
                     else: hanzi += f'<ruby>{str(it).replace("punc", "，")}<rt></rt></ruby>'
                 ch_h += f'<span class="story-sentence" id="row-{idx}">{hanzi}</span> '
                 tr_h += f'<span class="story-trans-sentence" id="trans-{idx}">{idx+1}. {trans} </span>'
+                
+                # 🌟 智能分段：故事模式每 5 句自动添加排版空隙
+                if (idx + 1) % 5 == 0 and (idx + 1) < len(st.session_state.current_data):
+                    ch_h += '<span class="story-paragraph-break"></span>'
+                    tr_h += '<span class="story-paragraph-break"></span>'
+                    
             html_str += f"{ch_h}</div>{tr_h}</div></div>"
         else:
             for idx, line in enumerate(st.session_state.current_data):
@@ -303,7 +319,6 @@ def main():
                 hanzi = ""
                 for it in line.get("t", []):
                     if isinstance(it, list):
-                        # 🚀 精准净化
                         c = str(it[0]).replace("punc", "，")
                         p = str(it[1]).replace("!", "").replace("?", "").replace(".", "").replace(",", "").replace(";", "").replace(":", "").replace("punc", "") if len(it)>1 else ""
                         if len(it)>2 and it[2]: 
