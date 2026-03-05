@@ -95,14 +95,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. AI 逻辑 (🌟 融入终极教学法剧本锁) ---
+# --- 3. AI 逻辑 (🌟 融入终极教学法剧本锁与动态行数计算) ---
 def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
     if not MY_API_KEY: return None
     try:
         genai.configure(api_key=MY_API_KEY)
         model = genai.GenerativeModel(TARGET_MODEL)
         safety = {HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE}
-        gen_config = GenerationConfig(temperature=0.85, response_mime_type="application/json")
+        gen_config = GenerationConfig(temperature=0.8, response_mime_type="application/json")
 
         allowed_vocab = []
         if level == "HSK 1":
@@ -120,39 +120,40 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
         """
             
         common_rules = f"""
-        CRITICAL RULES:
-        1. PUNCTUATION PLACEMENT: Punctuation (，。？！) MUST be placed in the character slot with an EMPTY pinyin string (e.g., ["。", ""]). ABSOLUTELY NO PUNCTUATION ALLOWED INSIDE THE PINYIN STRING (WRONG: ["吗", "ma?"], CORRECT: ["吗", "ma"], ["？", ""]).
-        2. GRAMMAR: Use HSK1 properly. Do NOT use '地', '得', or '和' to connect verbs.
-        3. FORMAT: Output JSON array of EXACTLY {num_lines} objects. Keys: "r", "t" (array of lists), "tr_es", "tr_en".
+        CRITICAL RULES (MUST STRICTLY FOLLOW):
+        1. JSON ARRAY ONLY: You MUST output a valid JSON array `[...]` of EXACTLY {num_lines} objects.
+        2. PUNCTUATION PLACEMENT: Punctuation (，。？！) MUST be placed in the character slot with an EMPTY pinyin string (e.g., ["。", ""]). ABSOLUTELY NO PUNCTUATION OR "punc" TEXT ALLOWED INSIDE THE PINYIN STRING (WRONG: ["吗", "ma?"], CORRECT: ["吗", "ma"], ["？", ""]).
+        3. GRAMMAR: Use HSK1 properly. Do NOT use '地', '得', or '和' to connect verbs.
+        4. KEYS: "r", "t" (array of lists), "tr_es", "tr_en".
         """
 
         if mode_type == "story":
             prompt = f"""
             {topic_str} Create a highly cohesive narrative STORY. EXACTLY {num_lines} sentences. "r" is "旁白".
-            - STORY FRAMEWORK (TIME PROGRESSION): Must have a beginning, middle, and end using time markers (今天, 下午, 明天). 
-            - NO CHOPPY SENTENCES: Combine ideas into fluid sentences. Avoid reciting simple actions.
-            - ABSOLUTELY NO DIALOGUE.
+            - STORY FRAMEWORK (TIME PROGRESSION): Must have a clear timeline (e.g. 昨天 -> 今天 -> 明天下午). 
+            - NO CHOPPY SENTENCES: Combine ideas into fluid sentences. Use proper conjunctions and location markers.
+            - ABSOLUTELY NO DIALOGUE. Pure prose only.
             {vocab_instr} {common_rules}
             """
         elif mode_type == "podcast":
-            intro1 = "¡Hola a todos! Bienvenidos al podcast de la Escuela de chino Long Wen. Hoy vamos a hablar de un tema muy interesante." if ui_lang == "Español" else "Hello everyone! Welcome to the Long Wen Chinese School podcast. Today we have a very interesting topic."
+            intro1 = "¡Hola a todos! Bienvenidos al podcast de la Escuela de chino Long Wen." if ui_lang == "Español" else "Hello everyone! Welcome to the Long Wen Chinese School podcast."
             intro3 = "¡Excelente! Vamos a escuchar." if ui_lang == "Español" else "Excellent! Let's listen."
-            outro = "¡Eso es todo por hoy! Gracias por escuchar la Escuela de chino Long Wen. ¡Hasta la próxima!" if ui_lang == "Español" else "That's all for today! Thanks for listening to Long Wen Chinese School. See you next time!"
+            outro = "¡Eso es todo por hoy! Gracias por escuchar la Escuela de chino Long Wen." if ui_lang == "Español" else "That's all for today! Thanks for listening to Long Wen Chinese School."
             
             prompt = f"""
-            {topic_str} Create a professional PODCAST. EXACTLY {num_lines} lines.
+            {topic_str} Create a professional PODCAST. EXACTLY {num_lines} lines total.
             - Line 1 MUST BE: "r": "主持人", "t": [["{intro1}", ""]]
-            - Line 2 MUST BE: "r": "美美", "t": (Only the Chinese Topic Name)
+            - Line 2 MUST BE: "r": "美美", "t": [[Chinese Topic Name, ""]]
             - Line 3 MUST BE: "r": "主持人", "t": [["{intro3}", ""]]
-            - PODCAST FRAMEWORK (CONTRASTING OPINIONS): The middle lines must be a natural sharing of preferences between 美美 and 大卫. They must have DIFFERENT preferences (e.g. A likes tea, B likes water). DO NOT interrogate or ask rapid-fire questions like "how many people in your family".
-            - Final line (Line {num_lines}) MUST BE: "r": "主持人", "t": [["{outro}", ""]]
+            - Lines 4 to {num_lines - 1}: Natural, ADULT-LIKE conversation between 美美 and 大卫 ONLY. PODCAST FRAMEWORK (CONTRASTING OPINIONS): They must discuss their different preferences on the topic. DO NOT interrogate or ask rapid-fire questions.
+            - Line {num_lines} MUST BE: "r": "主持人", "t": [["{outro}", ""]]
             {vocab_instr} {common_rules}
             """
         else: # Dialogue
             prompt = f"""
             {topic_str} Create a TASK-DRIVEN conversation between '美美' and '大卫'. EXACTLY {num_lines} lines. 
             - DIALOGUE FRAMEWORK (TASK-BASED): A proposes a goal -> B presents a minor obstacle or asks for details -> they negotiate -> agree on action.
-            - NATIVE LOGIC (NO PARROTING): DO NOT repeat the other person's exact words. If A says "去医院", B must reply with natural ellipses like "好啊，几点？" (NEVER "去医院？好。").
+            - NATIVE LOGIC (NO PARROTING): DO NOT repeat the other person's exact words. If A says "去医院", B must reply with natural ellipses like "好啊，几点？" or "太远了" (NEVER "去医院？好。"). Speak like smart adults.
             {vocab_instr} {common_rules}
             """
 
@@ -244,17 +245,17 @@ def main():
     with st.sidebar:
         ui_lang = st.selectbox("Language", ["Español", "English"])
         ui = UI_TEXT[ui_lang]
-        mode_label = st.radio("Modo", ["Diálogo 🗣️", "Historia 📖", "Podcast 🎧"], horizontal=True)
-        mode_type = "story" if "Historia" in mode_label else ("podcast" if "Podcast" in mode_label else "dialogue")
-        topic, level = st.text_input("Tema", ""), st.selectbox("Nivel", ["HSK 1", "HSK 2", "HSK 3"])
-        unit_limit = st.slider("Límite de Unidad (HSK 1)", 1, 15, 15) if level == "HSK 1" else 15
-        keys, num_lines = st.text_input("Palabras", ""), st.slider("Líneas", 4, 24, 12, 2)
+        mode_label = st.radio(ui["mode"], [ui["dialogue"], ui["story"], ui["podcast"]], horizontal=True)
+        mode_type = "story" if ui["story"] in mode_label else ("podcast" if ui["podcast"] in mode_label else "dialogue")
+        topic, level = st.text_input(ui["topic"], ""), st.selectbox(ui["level"], ["HSK 1", "HSK 2", "HSK 3"])
+        unit_limit = st.slider(ui["unit"], 1, 15, 15) if level == "HSK 1" else 15
+        keys, num_lines = st.text_input(ui["keywords"], ""), st.slider(ui["lines"], 4, 24, 12, 2)
         if st.button(ui["gen_btn"]):
             with st.spinner(ui["loading"]):
                 res = call_ai(topic, level, keys, num_lines, unit_limit, mode_type, ui_lang)
                 if res: st.session_state.current_data, st.session_state.audio_file, st.session_state.rendered_mode = res, "", mode_type; st.rerun()
         st.divider()
-        show_py, show_tr = st.toggle("Mostrar Pinyin", value=True), st.toggle("Mostrar Traducción", value=True)
+        show_py, show_tr = st.toggle(ui["show_py"], value=True), st.toggle(ui["show_tr"], value=True)
         if st.button(f"🔄 {ui['refresh']}"): st.session_state.audio_file = ""; st.rerun()
 
     st.markdown('<div class="main-title">Long Wen Reading Assistant Pro</div>', unsafe_allow_html=True)
@@ -284,9 +285,9 @@ def main():
                 hanzi = ""
                 for it in line.get("t", []):
                     if isinstance(it, list):
-                        # 🚀 极度暴力的物理净化：不仅干掉标点，连分号冒号一起杀！
+                        # 🚀 精准净化：只过滤那些让页面崩溃的标点和幽灵 punc，不误伤带有撇号的合法拼音
                         c = str(it[0]).replace("punc", "，")
-                        p = str(it[1]).replace("!", "").replace("?", "").replace(".", "").replace(",", "").replace(";", "").replace(":", "") if len(it)>1 else ""
+                        p = str(it[1]).replace("!", "").replace("?", "").replace(".", "").replace(",", "").replace(";", "").replace(":", "").replace("punc", "") if len(it)>1 else ""
                         if len(it)>2 and it[2]: 
                             hanzi += f'<ruby class="oov-word" title="超纲: {it[2]}">{c}<span class="oov-star">*</span><rt>{p}</rt></ruby>'
                         else: hanzi += f'<ruby>{c}<rt>{p}</rt></ruby>'
@@ -302,9 +303,9 @@ def main():
                 hanzi = ""
                 for it in line.get("t", []):
                     if isinstance(it, list):
-                        # 🚀 极度暴力的物理净化
+                        # 🚀 精准净化
                         c = str(it[0]).replace("punc", "，")
-                        p = str(it[1]).replace("!", "").replace("?", "").replace(".", "").replace(",", "").replace(";", "").replace(":", "") if len(it)>1 else ""
+                        p = str(it[1]).replace("!", "").replace("?", "").replace(".", "").replace(",", "").replace(";", "").replace(":", "").replace("punc", "") if len(it)>1 else ""
                         if len(it)>2 and it[2]: 
                             hanzi += f'<ruby class="oov-word" title="超纲: {it[2]}">{c}<span class="oov-star">*</span><rt>{p}</rt></ruby>'
                         else: hanzi += f'<ruby>{c}<rt>{p}</rt></ruby>'
