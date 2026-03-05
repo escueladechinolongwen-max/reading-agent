@@ -129,8 +129,13 @@ def call_ai(topic, level, keywords, num_lines, unit_limit, mode_type, ui_lang):
             
         common_rules = f"""
         CRITICAL RULES (MUST STRICTLY FOLLOW):
-        1. JSON ARRAY ONLY: You MUST output a valid JSON array `[...]` of EXACTLY {num_lines} objects.
-        2. PUNCTUATION: Punctuation (，。？！) MUST be placed in the character slot with an EMPTY pinyin string (e.g., ["。", ""]). NO PUNCTUATION ALLOWED INSIDE PINYIN.
+        1. JSON FORMAT REQUIRED: You MUST output a valid JSON array `[...]` containing EXACTLY {num_lines} objects.
+        2. JSON KEYS: Every object MUST have these exact keys:
+           - "r": Role string ("美美", "大卫", "主持人", "旁白").
+           - "t": Array of arrays for characters/pinyin/translations. (e.g., [["我", "wǒ"], ["。", ""]])
+           - "tr_en": English translation string.
+           - "tr_es": Spanish translation string.
+        3. PUNCTUATION: Punctuation (，。？！) MUST be placed in the character slot with an EMPTY pinyin string (e.g., ["。", ""]). NO PUNCTUATION ALLOWED INSIDE PINYIN.
         """
 
         if mode_type == "story":
